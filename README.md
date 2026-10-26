@@ -14,7 +14,7 @@
 
 ## What it will do
 
-Make Colors PPTX is the companion *skill* of [**Make_Clean_PPTX**](https://github.com/MaximeRumpler/Make_Clean_PPTX).
+Make Colors PPTX is a companion *skill* of [**Make_Clean_PPTX**](https://github.com/MaximeRumpler/Make_Clean_PPTX).
 
 Make_Clean_PPTX gives your notes their **form**: one message per slide, a matching design and chart, in black, grey and white. Make Colors PPTX gives them **your brand**: it reads what you have, builds a PowerPoint theme from it, and applies it to the clean deck.
 
@@ -28,14 +28,14 @@ It proposes a palette and fonts, checks that text stays readable (contrast) and 
 
 * * *
 
-## Two skills, one deck
+## The Make PPTX set
 
-| **1. Make_Clean_PPTX** | **2. Make_Colors_PPTX** |
-|:---|:---|
-| Notes in, clean deck out. Neutral design built on theme colours and fonts. | Brand in, theme out. The same deck in your colours, in one step. |
-| [Install](https://github.com/MaximeRumpler/Make_Clean_PPTX#install) · [Gallery](https://maximerumpler.github.io/Make_Clean_PPTX/) | In preparation |
+| **Make_Clean_PPTX** | **Make_Style_PPTX** | **Make_Colors_PPTX** |
+|:---|:---|:---|
+| **Form.** Notes in, clean deck out. | **Look.** The same deck in another style. | **Brand.** Your colours, fonts and logo. |
+| [Install](https://github.com/MaximeRumpler/Make_Clean_PPTX#install) · [Gallery](https://maximerumpler.github.io/Make_Clean_PPTX/) | In preparation | In preparation |
 
-Both work in Claude Code, Claude.ai, Codex and other assistants that read skills.
+Each one works on its own; together they take you from raw notes to a finished, branded deck. All of them work in Claude Code, Claude.ai, Codex and other assistants that read skills.
 
 * * *
 
