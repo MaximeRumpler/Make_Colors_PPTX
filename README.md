@@ -30,6 +30,8 @@ It proposes a palette and fonts, checks that text stays readable (contrast) and 
 
 ## The Make PPTX set
 
+Part of [**Make PPTX**](https://github.com/MaximeRumpler/Make_PPTX), a set of three skills from your notes to a finished deck.
+
 | **Make_Clean_PPTX** | **Make_Style_PPTX** | **Make_Colors_PPTX** |
 |:---|:---|:---|
 | **Form.** Notes in, clean deck out. | **Look.** The same deck in another style. | **Brand.** Your colours, fonts and logo. |
