@@ -22,7 +22,7 @@ You give it whatever you have:
 
 | **A brand guide** | **A website** | **Example files** |
 |:---:|:---:|:---:|
-| your *charte graphique* as PDF | its colours and fonts, from the CSS | a deck or document in your colours |
+| your brand guidelines, as a PDF | its colours and fonts, from the CSS | a deck or document in your colours |
 
 It proposes a palette and fonts, checks that text stays readable (contrast) and that charts stay clear, shows you the deck before and after, and never changes your content or layout.
 
