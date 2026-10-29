@@ -31,8 +31,8 @@ def test_referenced_files_exist():
         assert (SKILL / rel).exists(), f"SKILL.md mentions {rel} but it does not exist"
 
 
-STDLIB = {"__future__", "argparse", "collections", "colorsys", "io", "json", "math", "os", "pathlib", "re",
-          "subprocess", "sys", "zipfile"}
+STDLIB = {"__future__", "argparse", "collections", "colorsys", "copy", "io", "itertools", "json", "math", "os",
+          "pathlib", "re", "shutil", "subprocess", "sys", "zipfile"}
 THIRD_PARTY = {"pptx", "PIL", "lxml"}  # python-pptx, Pillow, lxml: nothing else to install
 
 
@@ -41,7 +41,8 @@ def test_self_contained_and_light():
         src = py.read_text(encoding="utf-8")
         assert "parent.parent.parent" not in src, py.name
         for mod in re.findall(r"^\s*(?:from|import) (\w+)", src, re.M):
-            assert mod in STDLIB | THIRD_PARTY or mod.startswith("_"), (py.name, mod)
+            local = (SKILL / "scripts" / (mod + ".py")).is_file()
+            assert mod in STDLIB | THIRD_PARTY or local, (py.name, mod)
     reqs = (SKILL / "requirements.txt").read_text().split()
     assert {r.split(">=")[0] for r in reqs} == {"python-pptx", "Pillow", "lxml"}
 
@@ -54,8 +55,9 @@ def test_contract_copy_matches_make_clean():
         theirs = json.loads((mc / "assets" / "theme-contract.json").read_text(encoding="utf-8"))
         assert ours["version"] == theirs["version"]
         assert ours["tokens"] == theirs["tokens"] and ours["ramp"] == theirs["ramp"]
-        assert [(p["text"], p["on"], p["min_ratio"]) for p in ours["pairs"]] == \
-               [(p["text"], p["on"], p["min_ratio"]) for p in theirs["pairs"]]
+        # Same rules; the order follows usage counts, which change whenever Make_Clean adds a visual.
+        assert sorted((p["text"], p["on"], p["min_ratio"]) for p in ours["pairs"]) == \
+               sorted((p["text"], p["on"], p["min_ratio"]) for p in theirs["pairs"])
 
 
 def test_no_private_links_in_readme():

@@ -79,3 +79,19 @@ def test_svg_and_pdf(tmp_path, capsys):
     assert ex.main([str(tmp_path / "logo.svg"), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["colours"]
     assert ex.main([str(tmp_path / "guide.pdf")]) == 2
+
+
+def test_brand_hues_skip_greys_and_shades(tmp_path):
+    (tmp_path / "site.css").write_text("""
+:root { --navy: #17255A; --navy-light: #5A6FB8; --orange: #E07A1F; --teal: #2A9D8F; --grey: #6B6B6B; }
+h1 { color: var(--navy); } .btn { background: var(--orange); } .tag { color: var(--teal); }
+""")
+    res = ex.extract([tmp_path / "site.css"])
+    assert sorted(res["brand_hues"]) == ["#17255A", "#2A9D8F", "#E07A1F"]
+    assert "Distinct brand hues" in ex.as_text(res)
+
+
+def test_brand_hues_of_a_one_hue_theme(tmp_path, harbour_roles):
+    rep = build_theme.build({**harbour_roles, "ramp": "single", "secondary": None}, tmp_path)
+    res = ex.extract([rep["variants"]["light"]["files"][0]])
+    assert len(res["brand_hues"]) == 1  # six shades of one blue are one brand hue

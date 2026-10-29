@@ -14,14 +14,17 @@ Reads, offline:
   pixels (Pillow palette quantisation, transparent pixels ignored);
 - a PDF brand guide is not parsed: read it yourself (hex, RGB, CMYK and Pantone values, font names).
 
-Web fonts that PowerPoint does not have get a suggested fallback. The agent proposes roles from
-this list with the user; nothing here says "first colour = primary".
+Web fonts that PowerPoint does not have get a suggested fallback. "brand_hues" lists up to four
+candidates of clearly different hues (greys and shades of a hue already listed left out), in the
+order found: the short list to propose a primary, a secondary and one or two others from. The agent proposes roles from
+it with the user; nothing here says "first colour = primary".
 """
 from __future__ import annotations
 
 import argparse
 import colorsys
 import json
+import math
 import re
 import sys
 import zipfile
@@ -30,7 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _colour import (COMMON_FONTS, SLOTS, ThemeError, delta_e, describe, hex_to_rgb, luminance,  # noqa: E402
-                     ratio, read_theme_xml, rgb_to_hex, theme_parts)
+                     ratio, read_theme_xml, rgb_to_hex, theme_parts, to_lab)
 
 OFFICE = {".pptx", ".potx", ".pptm", ".potm", ".thmx", ".docx", ".dotx", ".docm", ".xlsx", ".xltx", ".xlsm"}
 WEB = {".css", ".html", ".htm", ".svg", ".scss", ".less"}
@@ -273,6 +276,27 @@ def read_image(path: Path, pool: Pool, notes: list, colours: int = 10):
         pool.add(rgb_to_hex(rgb), "image %s" % path.name, count, share=count / total)
 
 
+def _hue_angle(hexval: str) -> float:
+    _, a, b = to_lab(hex_to_rgb(hexval))
+    return math.degrees(math.atan2(b, a)) % 360
+
+
+def brand_hues(colours: list, most: int = 4, apart: float = 25.0) -> list:
+    """Up to `most` non-neutral candidates whose hues differ by at least `apart` degrees (CIE LCh), in the
+    order found: lighter or darker shades of a hue already kept are left out."""
+    kept = []
+    for c in colours:
+        if c["neutral"]:
+            continue
+        h = _hue_angle(c["hex"])
+        if any(min(abs(h - k), 360 - abs(h - k)) < apart for k in map(_hue_angle, kept)):
+            continue
+        kept.append(c["hex"])
+        if len(kept) == most:
+            break
+    return kept
+
+
 def fallback_for(font: str) -> str:
     if font.lower() in COMMON_FONTS:
         return ""
@@ -303,7 +327,9 @@ def extract(paths, top: int = 12) -> dict:
     font_list = [{"font": f, "sources": sorted(s)[:4], "common": f.lower() in COMMON_FONTS,
                   **({"fallback": fallback_for(f)} if fallback_for(f) else {})}
                  for f, s in sorted(fonts.items(), key=lambda kv: (-len(kv[1]), kv[0].lower()))]
-    return {"read": read, "colours": pool.candidates(top), "fonts": font_list, "notes": notes}
+    colours = pool.candidates(top)
+    return {"read": read, "colours": colours, "brand_hues": brand_hues(colours), "fonts": font_list,
+            "notes": notes}
 
 
 def as_text(res: dict) -> str:
@@ -313,6 +339,9 @@ def as_text(res: dict) -> str:
         lines.append("  %s  %-16s%s  on white %5.2f:1  on black %5.2f:1%s  <- %s" % (
             c["hex"], c["name"], share, c["on_white"], c["on_black"], "  (neutral)" if c["neutral"] else "",
             "; ".join(c["sources"])))
+    if res.get("brand_hues"):
+        names = {c["hex"]: c["name"] for c in res["colours"]}
+        lines.append("Distinct brand hues: " + ", ".join("%s %s" % (h, names[h]) for h in res["brand_hues"]))
     if res["fonts"]:
         lines.append("Fonts")
         for f in res["fonts"]:
