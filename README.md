@@ -5,14 +5,14 @@
 *From your content, first Make_Clean, then add your colours.*
 
 [![License](https://img.shields.io/badge/License-EUPL--1.2-10B981?style=flat-square&labelColor=1C2333)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-in_preparation-10B981?style=flat-square&labelColor=1C2333)](#roadmap)
+[![Status](https://img.shields.io/badge/Status-preview-10B981?style=flat-square&labelColor=1C2333)](#status)
 [![Companion](https://img.shields.io/badge/Companion_of-Make__Clean__PPTX-10B981?style=flat-square&labelColor=1C2333)](https://github.com/MaximeRumpler/Make_Clean_PPTX)
 
 </div>
 
 * * *
 
-## What it will do
+## What it does
 
 Make Colors PPTX is a companion *skill* of [**Make_Clean_PPTX**](https://github.com/MaximeRumpler/Make_Clean_PPTX).
 
@@ -20,11 +20,44 @@ Make_Clean_PPTX gives your notes their **form**: one message per slide, a matchi
 
 You give it whatever you have:
 
-| **A brand guide** | **A website** | **Example files** |
-|:---:|:---:|:---:|
-| your brand guidelines, as a PDF | its colours and fonts, from the CSS | a deck or document in your colours |
+| **A brand guide** | **A website** | **Example files** | **A logo** |
+|:---:|:---:|:---:|:---:|
+| your brand guidelines, as a PDF | its colours and fonts, from a saved page or its CSS | a deck, template or theme in your colours | its main colours, from the image |
 
-It proposes a palette and fonts, checks that text stays readable (contrast) and that charts stay clear, shows you the deck before and after, and never changes your content or layout.
+It lists the colours and fonts it finds, and the assistant agrees with you on which one leads. Then it builds a real PowerPoint theme, light and dark, checks that text stays readable and that charts stay clear (also in greyscale and for colour-blind readers), and shows you the deck before and after. It never changes your content or layout.
+
+* * *
+
+## How it works
+
+| **Find** | **Choose** | **Build** | **Check** | **Show** |
+|:---|:---|:---|:---|:---|
+| Colours and fonts found in your files, offline | You and the assistant pick the main colour and fonts | A `.potx` theme, light and dark, that PowerPoint and Make_Clean_PPTX both use | Contrast 4.5:1 for text, 3:1 for large text and charts; greyscale and colour-blind views | The same deck, before and after, in one image |
+
+**Why one main colour.** Make_Clean's slides read their six accent colours as steps, from strong to faint: the main series, the dark panels, the light fills. So your main colour becomes a family of shades, and a colour that cannot carry readable text (most yellows and oranges) moves to the nearest readable shade. The skill says so, and why. The rules, with their reasons, are in [colour-rules.md](skills/make-colors-pptx/references/colour-rules.md).
+
+In Make_Clean's deck.json, two lines apply your brand:
+
+```json
+"theme": "brand/your-brand.potx",
+"logo": "brand/logo.png"
+```
+
+The theme also works on its own in PowerPoint: *Design → Themes → Browse for Themes*.
+
+* * *
+
+## Status
+
+Preview, not released yet. The skill folder is [skills/make-colors-pptx](skills/make-colors-pptx): copy it next to `make-clean-pptx` in your assistant's skills folder. It needs Python 3.9 or later with python-pptx, Pillow and lxml; the before/after images also need LibreOffice. The first release will be announced on [Make_Clean_PPTX](https://github.com/MaximeRumpler/Make_Clean_PPTX).
+
+Just ask, in your own words:
+
+```text
+Put this deck in our colours: here is our logo and our website.
+Make a PowerPoint theme from our brand guidelines.
+Mets ce deck aux couleurs de notre marque, voici notre logo.
+```
 
 * * *
 
@@ -38,12 +71,6 @@ Part of [**Make PPTX**](https://github.com/MaximeRumpler/Make_PPTX), a set of th
 | [Install](https://github.com/MaximeRumpler/Make_Clean_PPTX#install) · [Gallery](https://maximerumpler.github.io/Make_Clean_PPTX/) | In preparation | In preparation |
 
 Each one works on its own; together they take you from raw notes to a finished, branded deck. All of them work in Claude Code, Claude.ai, Codex and other assistants that read skills.
-
-* * *
-
-## Roadmap
-
-In preparation. Follow [Make_Clean_PPTX](https://github.com/MaximeRumpler/Make_Clean_PPTX) for updates; the first release will be announced there.
 
 * * *
 

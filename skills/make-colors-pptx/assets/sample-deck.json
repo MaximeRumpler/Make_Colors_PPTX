@@ -1,0 +1,27 @@
+{
+  "_comment": "Preview deck for preview_deck.py: one light cover with the logo slot, text, a figure, a four-series chart, a dark divider and a closing slide, so every theme slot shows. Placeholder wording only.",
+  "output": "sample.pptx",
+  "language": "en-GB",
+  "slides": [
+    {"id": "L-01", "fill": {"Kicker": "Theme preview", "Title": "Your colours on a clean deck", "Subtitle": "Six sample slides that show every colour and font of the theme", "Date": "Sample"}},
+    {"id": "L-20", "fill": {
+      "Kicker": "Text and icons", "Title": "Headings use the heading font, text uses the body font",
+      "Icon 1": {"icon": "lucide:palette"}, "Heading 1": "Colours",
+      "Body 1": "Accent 1 carries the emphasis; the other accents are lighter steps of the same family.",
+      "Icon 2": {"icon": "lucide:type"}, "Heading 2": "Fonts",
+      "Body 2": "A wider brand font fills the boxes sooner: the check after the build reports any overflow.",
+      "Icon 3": {"icon": "lucide:contrast"}, "Heading 3": "Contrast",
+      "Body 3": "Every text and fill pair keeps at least 4.5:1, so the slides stay readable on any screen."}},
+    {"id": "L-13", "fill": {
+      "Kicker": "Key figure", "Number": "4.5:1", "Number caption": "the minimum contrast between normal text and the colour behind it",
+      "Title": "Readable first", "Body": "Large text and graphics need 3:1. The theme check measures every pair the layouts use."}},
+    {"id": "L-31", "fill": {"Kicker": "Chart", "Title": "Chart series follow the accents, strongest first", "Subtitle": "Four series in theme order"},
+     "insert": [{"id": "V-COM-06", "component": "V-COM-06", "into": "Content Area", "fill": {
+       "Chart": {"categories": ["Q1", "Q2", "Q3", "Q4"],
+                 "series": {"Series A": [40, 42, 45, 47], "Series B": [25, 27, 26, 30],
+                            "Series C": [15, 16, 18, 19], "Series D": [10, 9, 11, 12]}},
+       "Source": "Sample values"}}]},
+    {"id": "L-09", "fill": {"Number": "02", "Title": "Dark slides", "Subtitle": "On dark slides the background is accent 1 and the text uses the light colours of the theme"}},
+    {"id": "L-49", "fill": {"Title": "Thank you", "Subtitle": "The closing slide carries the logo too", "Contact 1 name": "Sample contact", "Contact 1 role": "Role"}}
+  ]
+}
