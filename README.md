@@ -24,7 +24,7 @@ You give it whatever you have:
 |:---:|:---:|:---:|:---:|
 | your brand guidelines, as a PDF | its colours and fonts, from a saved page or its CSS | a deck, template or theme in your colours | its main colours, from the image |
 
-It lists the colours and fonts it finds, and the assistant agrees with you on which one leads. Then it builds a real PowerPoint theme, light and dark, checks that text stays readable and that charts stay clear (also in greyscale and for colour-blind readers), and shows you the deck before and after. It never changes your content or layout.
+It lists the colours and fonts it finds, and the assistant agrees with you on your three or four brand colours and which one leads. Then it builds a real PowerPoint theme, light and dark, checks that text stays readable and that charts stay clear (also in greyscale and for colour-blind readers), and shows you the deck before and after. It never changes your content or layout.
 
 * * *
 
@@ -32,9 +32,9 @@ It lists the colours and fonts it finds, and the assistant agrees with you on wh
 
 | **Find** | **Choose** | **Build** | **Check** | **Show** |
 |:---|:---|:---|:---|:---|
-| Colours and fonts found in your files, offline | You and the assistant pick the main colour and fonts | A `.potx` theme, light and dark, that PowerPoint and Make_Clean_PPTX both use | Contrast 4.5:1 for text, 3:1 for large text and charts; greyscale and colour-blind views | The same deck, before and after, in one image |
+| Colours and fonts found in your files, offline | You and the assistant pick the brand colours, the main one first, and fonts | A `.potx` theme, light and dark, that PowerPoint and Make_Clean_PPTX both use | Contrast 4.5:1 for text, 3:1 for large text and charts; greyscale and colour-blind views | The same deck, before and after, in one image |
 
-**Why one main colour.** Make_Clean's slides read their six accent colours as steps, from strong to faint: the main series, the dark panels, the light fills. So your main colour becomes a family of shades, and a colour that cannot carry readable text (most yellows and oranges) moves to the nearest readable shade. The skill says so, and why. The rules, with their reasons, are in [colour-rules.md](skills/make-colors-pptx/references/colour-rules.md).
+**How your colours fit.** Make_Clean's slides read their six accent colours as steps, from dark to light: the dark panels, the main series, the light fills. Brand guidelines usually have three or four colours, so each one takes the step nearest its own lightness (a navy near the dark end, a yellow near the light end) and the steps in between are shades of the nearest one. A colour that cannot carry readable text there moves to the nearest readable shade of itself; the skill says so, and why. Greys stay for text and cards. The rules, with their reasons, are in [colour-rules.md](skills/make-colors-pptx/references/colour-rules.md).
 
 In Make_Clean's deck.json, two lines apply your brand:
 
@@ -43,7 +43,7 @@ In Make_Clean's deck.json, two lines apply your brand:
 "logo": "brand/logo.png"
 ```
 
-The theme also works on its own in PowerPoint: *Design → Themes → Browse for Themes*.
+A deck that is already made, restyled or not, gets the theme without being rebuilt: the skill writes a branded copy and leaves your file as it is. The theme also works on its own in PowerPoint: *Design → Themes → Browse for Themes*.
 
 * * *
 

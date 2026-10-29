@@ -8,15 +8,28 @@ A slide reads best when about **60 %** of it is the background (paper, white or 
 
 *Why:* emphasis only works by contrast with what is not emphasised. When everything is in the brand colour, nothing stands out and the eye has no entry point. Make_Clean's layouts are already built this way. Map the brand onto them; do not add colour.
 
-In the theme: the brand's signature hue goes on `accent1` (strongest) or `accent2` (when it is mid-tone). The other accents are lighter or darker steps of the same hue. `lt1`/`lt2` (background, cards) and `dk1`/`dk2` (text) stay neutral or barely tinted.
+In the theme: the brand colours go on the six accents (section 2); `lt1`/`lt2` (background, cards) and `dk1`/`dk2` (text) stay neutral or barely tinted, which keeps the 60 % and the 30 % quiet.
 
-## 2. The accents are a ramp, not a palette
+## 2. The accents are a ramp of brand colours
 
-`accent1` to `accent6` go from strong to faint (light theme: dark to light; dark theme: light to dark), each step at least **1.1:1** brighter or darker than the previous one. This is the theme contract of Make_Clean_PPTX.
+`accent1` to `accent6` go from strong to faint (light theme: dark to light; dark theme: light to dark), each step at least **1.1:1** brighter or darker than the previous one. This is the theme contract of Make_Clean_PPTX. It fixes the **lightness** of each step, not its hue.
 
-*Why:* charts, heat grids, levels and layers read the accents in order, and the text colour on each fill is fixed: paper text on `accent1` and `accent2`, ink text on `accent3` to `accent6`. Six unrelated brand hues turn charts into a rainbow with no order, and put white text on yellow or black text on navy.
+*Why:* charts, heat grids, levels and layers read the accents in order, and the text colour on each fill is fixed: paper text on `accent1` and `accent2`, ink text on `accent3` to `accent6`. Six brand colours in a random order put white text on yellow or black text on navy, and the levels mean nothing.
 
-A brand with several colours: pick **one** as the ramp hue (the one people recognise the brand by). A second hue can be used for links (`hlink`) or, with `"ramp_drift": true`, as a slow drift of the ramp from the primary to the secondary hue, when the two are close (blue to teal, red to orange). Say so to the user: the other brand colours stay available for pictures and the logo, not for the layouts.
+How brand colours fit (`build_theme.py` does it; this is what to explain):
+
+| Brand guidelines | Ramp |
+|---|---|
+| One colour | Six shades of it, the exact colour on the step nearest its lightness |
+| Three or four colours (the usual case) | Each colour on the step nearest its own lightness (dark navy near `accent1`, orange in the middle, yellow near `accent6`); the steps in between are shades of the nearest brand colour; `accent1` keeps the main colour's hue unless another brand colour is already that dark |
+| More than four | Ask which four lead; the others stay for pictures and the logo |
+| Greys, black, white | Neutrals: text, body, background, cards (`neutrals`), never accents |
+
+- A colour stays **exact** when the theme still passes there; otherwise it becomes the lighter or darker shade of the same hue that does, and the report says so. The main colour chooses first, then the secondary.
+- Charts take `accent1, accent3, accent5` first, so the first three series are usually three different brand colours.
+- The secondary colour also gives the hyperlink colour (`hlink`), darkened if needed.
+- Two hues of the same lightness can look alike to colour-blind readers (red and green, red and blue for protanopia): the builder then tries another arrangement, and `check_theme.py` shows the result in every view.
+- Options: `"ramp": "single"` keeps one hue (the other colours set aside); `"ramp": "drift"` slides from the primary to the secondary hue, for two close hues (blue to teal).
 
 ## 3. Contrast: 4.5:1 for text, 3:1 for large text and graphics
 
@@ -64,8 +77,8 @@ The logo is not part of the theme. Make_Clean places it from the `"logo"` key of
 
 ## Ten quick checks before delivery
 
-1. One brand hue on the ramp, the others named and set aside with the user's agreement.
-2. `accent1` or `accent2` is the brand colour, or the nearest readable shade (and the user knows).
+1. At most four brand colours on the ramp, in order of lightness; any others named and set aside with the user's agreement.
+2. Each brand colour is exact on its step, or the user knows which shade replaced it and why.
 3. `check_theme.py` passes for every variant delivered.
 4. The greyscale view still shows six distinct steps.
 5. Text colour is near-black, `#111111` or darker (light theme) or off-white (dark theme), never mid-grey.

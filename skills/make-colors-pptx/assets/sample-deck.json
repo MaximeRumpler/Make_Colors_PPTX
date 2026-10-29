@@ -7,7 +7,7 @@
     {"id": "L-20", "fill": {
       "Kicker": "Text and icons", "Title": "Headings use the heading font, text uses the body font",
       "Icon 1": {"icon": "lucide:palette"}, "Heading 1": "Colours",
-      "Body 1": "Accent 1 carries the emphasis; the other accents are lighter steps of the same family.",
+      "Body 1": "Accent 1 carries the emphasis; the brand colours follow it, from dark to light.",
       "Icon 2": {"icon": "lucide:type"}, "Heading 2": "Fonts",
       "Body 2": "A wider brand font fills the boxes sooner: the check after the build reports any overflow.",
       "Icon 3": {"icon": "lucide:contrast"}, "Heading 3": "Contrast",

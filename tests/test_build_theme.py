@@ -131,3 +131,76 @@ def test_make_clean_accepts_the_theme(tmp_path, harbour_roles):
         theme = read_theme(etree.tostring(src["root"]))
         assert theme_findings(theme, contract, src["clrmap"]) == [], f
     assert load_theme_source(rep["variants"]["dark"]["files"][0])["clrmap"]["bg1"] == "dk1"
+
+
+# ------------------------------------------------------------------ brands with three or four colours
+def _hue(hexval):
+    return colorsys.rgb_to_hls(*(int(hexval.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)))[0]
+
+
+def _close_hue(a, b, tol=0.03):
+    d = abs(_hue(a) - _hue(b))
+    return min(d, 1 - d) < tol
+
+
+def palettes():
+    """Invented 2- to 4-colour brands: a sweep of hue combinations, dark and light, close and far apart."""
+    base = ["#" + rgb_to_hex(colorsys.hls_to_rgb(h / 360, lum, s))
+            for h in range(0, 360, 45) for s, lum in ((0.85, 0.4), (1.0, 0.6))]
+    return [[base[(i * 5 + k * 7) % len(base)] for k in range(2 + i % 3)] for i in range(24)]
+
+
+@pytest.mark.parametrize("colours", palettes())
+def test_brand_palettes_pass_contract_and_views(colours, tmp_path):
+    roles = {"name": "Sweep", "primary": colours[0], "secondary": colours[1], "others": colours[2:]}
+    rep = build_theme.build(roles, tmp_path)
+    assert rep["ok"], rep["variants"]
+    expected = {"primary", "secondary"} | {"other %d" % (i + 1) for i in range(len(colours) - 2)}
+    for v in rep["variants"].values():
+        assert v["view_warnings"] == [], v
+        assert set(v["brand_slots"]) == expected
+        accents = [v["colors"]["accent%d" % i] for i in range(1, 7)]
+        for c in colours:  # every brand hue is on the ramp, exact or as a shade of the same hue
+            assert any(_close_hue(c, a) for a in accents), (c, accents)
+
+
+def test_four_colour_brand(tmp_path):
+    roles = {"name": "Demo Harbour", "primary": "#1D4E89", "secondary": "#E07A1F",
+             "others": ["#2A9D8F", "#F2C14E"], "variants": ["light"]}
+    light = build_theme.build(roles, tmp_path)["variants"]["light"]
+    c = light["colors"]
+    assert light["primary_slot"] == "accent2" and c["accent2"] == "1D4E89"
+    assert light["brand_slots"]["secondary"] == "accent3" and c["accent3"] == "E07A1F"
+    assert _close_hue(c["accent1"], "#1D4E89")  # dark panels stay in the primary's family
+
+
+def test_mid_tone_colours_never_become_accent1(tmp_path):
+    """accent1 is near-black on a light theme: a red or green pushed there would turn muddy."""
+    roles = {"name": "Demo Grove", "primary": "#2E7D32", "secondary": "#C62828", "others": ["#FBC02D", "#1565C0"],
+             "variants": ["light"]}
+    light = build_theme.build(roles, tmp_path)["variants"]["light"]
+    assert _close_hue(light["colors"]["accent1"], "#2E7D32")
+
+
+def test_neutral_brand_colour_is_set_aside(tmp_path):
+    rep = build_theme.build({"name": "Demo", "primary": "#6A1B9A", "secondary": "#00ACC1", "others": ["#888888"],
+                             "variants": ["light"]}, tmp_path)
+    light = rep["variants"]["light"]
+    assert "other 1" not in light["brand_slots"]
+    assert any("neutral" in n for n in light["notes"])
+
+
+def test_single_ramp_keeps_one_hue(tmp_path):
+    roles = {"name": "Demo", "primary": "#1D4E89", "secondary": "#E07A1F", "others": ["#2A9D8F"],
+             "ramp": "single", "variants": ["light"]}
+    light = build_theme.build(roles, tmp_path)["variants"]["light"]
+    assert all(_close_hue(light["colors"]["accent%d" % i], "#1D4E89", 0.02) for i in range(1, 7))
+    assert list(light["brand_slots"]) == ["primary"]
+
+
+@pytest.mark.parametrize("bad", [{"ramp": "rainbow"}, {"others": ["#AA2222", "#22AA22", "#2222AA"]}])
+def test_bad_roles_are_refused(bad, tmp_path, capsys):
+    roles = tmp_path / "roles.json"
+    roles.write_text(json.dumps({"name": "x", "primary": "#1D4E89", "secondary": "#E07A1F", **bad}))
+    assert build_theme.main([str(roles), "--out-dir", str(tmp_path / "out")]) == 2
+    assert "error" in capsys.readouterr().out

@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Before/after preview: the same Make_Clean deck in neutral grey and with the brand theme.
 
-    preview_deck.py --theme brand/brand.potx [--logo brand/logo.png] [--deck deck.json]
+    preview_deck.py --theme brand/brand.potx [--logo brand/logo.png] [--deck deck.json | --pptx deck.pptx]
                     [--out-dir build/colors-preview] [--make-clean DIR]
 
 Needs the Make_Clean_PPTX skill (it builds and renders the decks). It is found with --make-clean,
 the MAKE_CLEAN_PPTX_DIR variable, or next to this skill (skills/make-clean-pptx, ~/.claude/skills,
 ~/.agents/skills). Without --deck, a bundled six-slide sample deck shows every colour slot.
+
+With --pptx, the deck already exists (made by Make_Clean, restyled by Make_Style_PPTX, or the
+user's own): "before" is that file and "after" is a copy with the theme put on by apply_theme.py;
+nothing is rebuilt and --logo is not used (a logo is placed when Make_Clean builds the deck).
 
 Steps: build the deck twice (without and with "theme"/"logo"), run Make_Clean's lint on the
 branded deck (overflow with the brand font, logo over text) with --contrast (every text against its
@@ -27,6 +31,9 @@ import sys
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _colour import ThemeError  # noqa: E402
+from apply_theme import apply  # noqa: E402
 SAMPLE = SKILL_DIR / "assets" / "sample-deck.json"
 
 
@@ -91,23 +98,38 @@ def side_by_side(before: Path, after: Path, out: Path) -> str:
             font = ImageFont.load_default(22)
         except TypeError:  # Pillow < 10.1
             font = ImageFont.load_default()
-    d.text((gap, 8), "Before (neutral)", font=font, fill=(30, 30, 30))
+    d.text((gap, 8), "Before", font=font, fill=(30, 30, 30))
     d.text((gap, a.height + label + gap + 8), "After (brand theme)", font=font, fill=(30, 30, 30))
     sheet.save(out)
     return str(out)
 
 
 def preview(theme, logo=None, deck=None, out_dir="build/colors-preview", make_clean=None, fallback=None,
-            render=True) -> dict:
+            render=True, pptx=None) -> dict:
     mc = find_make_clean(make_clean)
     if not mc:
         return {"error": "Make_Clean_PPTX not found: install it next to this skill, or pass --make-clean "
                          "<folder> (or set MAKE_CLEAN_PPTX_DIR)", "code": 3}
     out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
+    res = {"make_clean": str(mc), "decks": {}, "before_after": None, "theme_warnings": [], "lint": {}}
+    if pptx:
+        try:
+            applied = apply(pptx, theme, out_dir / "after.pptx", fallback)
+        except (ThemeError, OSError, ValueError) as exc:
+            return {"error": "the theme could not be put on %s: %s" % (Path(pptx).name, exc), "code": 2}
+        res["decks"] = {"before": str(Path(pptx).resolve()), "after": applied["output"]}
+        res["theme_warnings"] = applied["findings"] + applied["notes"] + applied["font_notes"]
+        res["theme_report"] = {k: applied[k] for k in ("theme", "fonts", "dark", "colour_map", "fixed_colours")}
+        if logo:
+            res["theme_warnings"].append("--logo is not used with --pptx: the logo is placed when Make_Clean builds")
+    return _check_and_render(res, mc, out_dir, render) if pptx else _build(res, mc, out_dir, render, theme, logo,
+                                                                          deck, fallback)
+
+
+def _build(res, mc, out_dir, render, theme, logo, deck, fallback) -> dict:
     deck_path = Path(deck) if deck else SAMPLE
     data = json.loads(deck_path.read_text(encoding="utf-8"))
-    res = {"make_clean": str(mc), "decks": {}, "before_after": None, "theme_warnings": [], "lint": {}}
     for label, th, lg in (("before", None, None), ("after", theme, logo)):
         spec = _spec(data, deck_path.parent.resolve(), out_dir / ("%s.pptx" % label), th, lg, fallback)
         spec_path = out_dir / ("%s.json" % label)
@@ -120,6 +142,10 @@ def preview(theme, logo=None, deck=None, out_dir="build/colors-preview", make_cl
         if label == "after":
             res["theme_warnings"] = [w for w in out.get("warnings", []) if not w.startswith("spec: unknown key")]
             res["theme_report"] = out.get("theme")
+    return _check_and_render(res, mc, out_dir, render)
+
+
+def _check_and_render(res, mc, out_dir, render) -> dict:
     code, out, _ = _run([mc / "scripts" / "lint_deck.py", res["decks"]["after"], "--json", "--contrast"])
     res["lint"] = out
     if render:
@@ -143,13 +169,15 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--theme", required=True, help="the theme built by build_theme.py (.potx, .thmx)")
     ap.add_argument("--logo", help="logo file (PNG, JPG or SVG) for the covers and the closing slide")
-    ap.add_argument("--deck", help="a Make_Clean deck.json to preview (default: the bundled sample deck)")
+    src = ap.add_mutually_exclusive_group()
+    src.add_argument("--deck", help="a Make_Clean deck.json to preview (default: the bundled sample deck)")
+    src.add_argument("--pptx", help="an existing .pptx (Make_Clean, Make_Style or other) to preview as it is")
     ap.add_argument("--out-dir", default="build/colors-preview")
     ap.add_argument("--make-clean", help="folder of the make-clean-pptx skill (or a clone of its repository)")
     ap.add_argument("--fonts-fallback", help='font used when the brand font is missing, e.g. "Arial"')
     ap.add_argument("--no-render", action="store_true", help="build and lint only")
     a = ap.parse_args(argv)
-    res = preview(a.theme, a.logo, a.deck, a.out_dir, a.make_clean, a.fonts_fallback, not a.no_render)
+    res = preview(a.theme, a.logo, a.deck, a.out_dir, a.make_clean, a.fonts_fallback, not a.no_render, a.pptx)
     print(json.dumps(res, indent=1, ensure_ascii=False))
     return res.get("code", 0) if "error" in res else 0
 

@@ -333,6 +333,25 @@ def check_theme(theme: dict, contract: dict | None = None) -> dict:
     return {"ok": not findings, "dark": dark, "ramp": ramp, "pairs": pairs, "findings": findings}
 
 
+def views_check(theme: dict, contract: dict) -> list:
+    """Smallest neighbour step of the accent ramp in greyscale and the three colour-vision views."""
+    step = contract.get("ramp", {}).get("min_step", 1.1)
+    out = []
+    acc = [token(theme, "a%d" % i, contract) for i in range(1, 7)]
+    for v in VIEWS[1:]:
+        sim = [simulate(c, v) for c in acc]
+        worst = min(range(5), key=lambda i: ratio(sim[i], sim[i + 1]))
+        r = ratio(sim[worst], sim[worst + 1])
+        out.append({"view": v, "min_step": round(r, 2), "between": "accent%d/accent%d" % (worst + 1, worst + 2),
+                    "ok": r >= step})
+    return out
+
+
+def view_findings(views: list) -> list:
+    return ["in %s, %s are hard to tell apart (%.2f:1)" % (v["view"], v["between"], v["min_step"])
+            for v in views if not v["ok"]]
+
+
 def font_note(name: str) -> str:
     """'' when the font is safe to assume on the machine that opens the deck, else a plain warning."""
     if not name or name.lower() in COMMON_FONTS:

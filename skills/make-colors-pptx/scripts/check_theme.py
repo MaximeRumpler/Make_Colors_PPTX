@@ -24,24 +24,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _colour import (VIEWS, ThemeError, check_theme, font_note, load_contract, load_theme, ratio,  # noqa: E402
-                     simulate, token)
+from _colour import (VIEWS, ThemeError, check_theme, font_note, load_contract, load_theme,  # noqa: E402
+                     simulate, token, view_findings, views_check)
 
 SERIES = ("a1", "a3", "a5", "a2", "a4", "a6")  # Make_Clean's chart order: neighbours far apart on the ramp
-
-
-def views_check(theme: dict, contract: dict) -> list:
-    """Smallest neighbour step of the ramp in each simulated view."""
-    step = contract.get("ramp", {}).get("min_step", 1.1)
-    out = []
-    acc = [token(theme, "a%d" % i, contract) for i in range(1, 7)]
-    for v in VIEWS[1:]:
-        sim = [simulate(c, v) for c in acc]
-        worst = min(range(5), key=lambda i: ratio(sim[i], sim[i + 1]))
-        r = ratio(sim[worst], sim[worst + 1])
-        out.append({"view": v, "min_step": round(r, 2), "between": "accent%d/accent%d" % (worst + 1, worst + 2),
-                    "ok": r >= step})
-    return out
 
 
 def run(path, contract=None) -> dict:
@@ -49,10 +35,7 @@ def run(path, contract=None) -> dict:
     theme = load_theme(path)
     res = check_theme(theme, contract)
     res["views"] = views_check(theme, contract)
-    for v in res["views"]:
-        if not v["ok"]:
-            res["findings"].append("in %s, %s are hard to tell apart (%.2f:1)" % (v["view"], v["between"],
-                                                                                    v["min_step"]))
+    res["findings"] += view_findings(res["views"])
     res["fonts"] = theme["fonts"]
     res["font_notes"] = [n for n in {font_note(f) for f in theme["fonts"].values()} if n]
     res["name"] = theme["name"]

@@ -4,7 +4,7 @@
     build_theme.py roles.json [--out-dir brand/] [--thmx] [--contract PATH]
 
 roles.json (see references/roles-reference.md):
-    {"name": "Demo Harbour", "primary": "#1D4E89", "secondary": "#E07A1F",
+    {"name": "Demo Harbour", "primary": "#1D4E89", "secondary": "#E07A1F", "others": ["#2A9D8F"],
      "fonts": {"major": "Georgia", "minor": "Arial"}}
 
 Writes `<slug>.potx` (light) and `<slug>-dark.potx` (dark: dk1 stays dark, the master's colour map
@@ -12,9 +12,12 @@ swaps text and background, as Make_Clean_PPTX expects), plus `<slug>.thmx` (ligh
 --thmx. Both files work in PowerPoint (Design > Browse for Themes, or open the template) and in
 Make_Clean_PPTX's deck.json: "theme": "brand/<slug>.potx".
 
-The six accents become one ramp of the primary hue, from strong to faint, with lightness solved so
-every pair of the theme contract passes; the exact primary takes the ramp slot nearest to it when it
-fits there. Prints a JSON report: files, slots, where the primary went, contract check, font notes.
+The six accents become one ramp from strong to faint, with lightness solved so every pair of the
+theme contract passes. Up to four brand colours (primary, secondary, others) each take the ramp slot
+nearest their own lightness, exactly when the theme still passes there, else as the nearest readable
+shade of the same hue; the slots in between are shades of the nearest brand colour. "ramp": "single"
+keeps the primary hue only, "drift" slides from the primary to the secondary hue. Prints a JSON
+report: files, slots, where each brand colour went, contract check, colour-blind views, font notes.
 Exit code 0 when every variant passes the contract, 1 when a variant still has findings (files are
 written anyway), 2 when roles.json cannot be used.
 """
@@ -23,16 +26,19 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import math
 import re
 import sys
 import zipfile
+from itertools import permutations
 from pathlib import Path
 
 from lxml import etree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _colour import (A, DARK_CLRMAP, NS, ThemeError, check_theme, font_note, hex_to_rgb, hls,  # noqa: E402
-                     load_contract, luminance, parse_hex, ratio, rgb_to_hex, at_luminance)
+from _colour import (A, DARK_CLRMAP, NS, ThemeError, at_luminance, check_theme, font_note,  # noqa: E402
+                     hex_to_rgb, hls, load_contract, luminance, parse_hex, ratio, rgb_to_hex, view_findings,
+                     views_check)
 
 P = "{%s}" % NS["p"]
 CT_PRES = "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"
@@ -45,6 +51,14 @@ DARK_NEUTRALS = {"text": "F5F5F5", "background": "121212", "body": "D9D9D9", "su
 LIGHT_TARGETS = (0.0137, 0.0999, 0.262, 0.451, 0.63, 0.79)
 DARK_TARGETS = (0.78, 0.32, 0.135, 0.07, 0.03, 0.015)
 MARGIN = 1.03  # aim a little above each threshold so 8-bit rounding never drops a pair below it
+RAMP_MODES = ("brand", "single", "drift")
+MAX_BRAND = 4
+CHART_FIRST = (0, 2, 4)  # accent1, accent3, accent5: the first three chart series in Make_Clean
+SLOT_PENALTY = 0.15  # small: only decides between two slots of nearly the same lightness
+WEIGHTS = (2.0, 1.5, 1.0)  # primary, secondary, others: who gets the slot nearest its own lightness
+ALTERNATIVES = 8  # assignments tried, best first, when a colour-blind view merges two neighbouring accents
+MISS = 0.3  # extra cost of a slot where the exact brand colour would have to become a shade
+ACCENT1_REACH = 0.95  # log-distance (about 2.6x in WCAG terms) beyond which a colour may not take accent1
 
 
 def f(y: float) -> float:
@@ -93,11 +107,76 @@ def _ramp_hues(primary, secondary, drift):
     return [(h + d * i / 5) % 1.0 for i in range(6)], s
 
 
+def is_neutral(hexval: str) -> bool:
+    """Greys, near-black and near-white: they belong to the neutrals (text, background), not the ramp."""
+    _, lum, s = hls(hex_to_rgb(hexval))
+    return s < 0.12 or lum < 0.06 or lum > 0.97
+
+
+def brand_colours(roles: dict) -> list:
+    """[(role, hex)] of the brand colours in order of importance: primary, secondary, others."""
+    out = [("primary", parse_hex(roles["primary"]))]
+    if roles.get("secondary"):
+        out.append(("secondary", parse_hex(roles["secondary"])))
+    others = roles.get("others") or []
+    if isinstance(others, str):
+        others = [others]
+    out += [("other %d" % (i + 1), parse_hex(c)) for i, c in enumerate(others)]
+    if len(out) > MAX_BRAND:
+        raise ValueError("at most %d brand colours fit on the ramp (primary, secondary and two others): set the "
+                         "rest aside for pictures and the logo" % MAX_BRAND)
+    return out
+
+
+def place_brand(colours: list, targets: list, fits) -> list:
+    """Assignments {slot index: colour index}, best first: each brand colour on the slot nearest its lightness.
+
+    Brute force over every assignment (at most 6*5*4*3). A slot where the exact colour passes the contract
+    (`fits(colour, slot)`) beats one where it would need a shade; the primary weighs most, then the
+    secondary; the slots that lead Make_Clean's charts (accent1, accent3, accent5) win near-ties.
+    accent1 (dark panels and slides) only takes a brand colour already close to it: a mid-tone colour
+    pushed there would turn into a muddy near-black.
+    """
+    ys = [luminance(hex_to_rgb(c)) for _, c in colours]
+    table = {}
+    for ci in range(len(colours)):
+        for si in range(6):
+            d = abs(math.log(f(ys[ci]) / f(targets[si])))
+            if si == 0 and d > ACCENT1_REACH:
+                table[ci, si] = float("inf")
+                continue
+            d += (0 if fits(colours[ci][1], si) else MISS) + (0 if si in CHART_FIRST else SLOT_PENALTY)
+            table[ci, si] = d * WEIGHTS[min(ci, 2)]
+
+    def cost(ci, si):
+        return table[ci, si]
+    ranked = sorted(((sum(cost(ci, si) for ci, si in enumerate(slots)), slots)
+                     for slots in permutations(range(6), len(colours))))
+    return [{si: ci for ci, si in enumerate(slots)} for c, slots in ranked[:ALTERNATIVES] if c < float("inf")]
+
+
+def _owner(slot: int, placed: dict) -> int:
+    """Brand colour whose hue a slot takes: its own; else the primary for accent1, the nearest placed
+    slot for the others (ties to the more important colour)."""
+    if slot in placed:
+        return placed[slot]
+    if slot == 0:
+        return 0
+    return min(placed.items(), key=lambda kv: (abs(kv[0] - slot), kv[1]))[1]
+
+
+def _passes(theme: dict, contract: dict) -> bool:
+    return check_theme(theme, contract)["ok"] and not view_findings(views_check(theme, contract))
+
+
 def make_variant(roles: dict, dark: bool, contract: dict) -> dict:
-    """Colour slots of one variant: {"colors": {slot: hex}, "clrmap": dict or None, "notes": [...]}."""
+    """Colour slots of one variant: {"colors", "clrmap", "notes", "primary_slot", "brand_slots"}."""
     notes = []
     primary = parse_hex(roles["primary"])
     secondary = parse_hex(roles["secondary"]) if roles.get("secondary") else None
+    mode = roles.get("ramp") or ("drift" if roles.get("ramp_drift") else "brand")
+    if mode not in RAMP_MODES:
+        raise ValueError("ramp can be %s, not %r" % (", ".join(RAMP_MODES), mode))
     hue = hls(hex_to_rgb(primary))[0]
     given = (roles.get("dark") if dark else roles.get("neutrals")) or {}
     neutrals = dict(DARK_NEUTRALS if dark else LIGHT_NEUTRALS)
@@ -107,38 +186,82 @@ def make_variant(roles: dict, dark: bool, contract: dict) -> dict:
     lum = {k: luminance(hex_to_rgb(v)) for k, v in neutrals.items()}
     step = contract.get("ramp", {}).get("min_step", 1.1)
 
+    def theme_of(acc):
+        return _theme(neutrals, acc, primary, dark, secondary)
+
+    slots = {}  # brand role -> "accentN" when kept exactly, None when a nearby shade is used
     accents_given = roles.get("dark_accents" if dark else "accents")
     if accents_given:
         accents = [parse_hex(c) for c in accents_given]
         if len(accents) != 6:
             raise ValueError("%s must list exactly six colours" % ("dark_accents" if dark else "accents"))
-        placed = None
+        return {**theme_of(accents), "notes": notes, "primary_slot": None, "brand_slots": slots}
+
+    brand = brand_colours(roles)
+    if mode == "brand":
+        for role, c in brand[1:]:
+            if is_neutral(c):
+                notes.append("%s %s is a neutral, not a ramp colour: use it as a neutral (text, body, background "
+                             "or surface) if it matters" % (role, c))
+        brand = brand[:1] + [(r, c) for r, c in brand[1:] if not is_neutral(c)]
     else:
-        targets = (solve_dark if dark else solve_light)(lum["background"], lum["text"], lum["body"], step)
-        hues, s = _ramp_hues(primary, secondary, roles.get("ramp_drift"))
-        accents = [rgb_to_hex(at_luminance(hues[i], s, targets[i])) for i in range(6)]
-        placed = None
-        # The exact primary replaces the nearest ramp slot when the whole theme still passes there.
-        y = luminance(hex_to_rgb(primary))
-        order = sorted(range(6), key=lambda i: abs(f(y) / f(targets[i]) - 1))
-        for i in order:
-            trial = accents[:i] + [primary] + accents[i + 1:]
-            if check_theme(_theme(neutrals, trial, primary, dark, secondary), contract)["ok"]:
-                accents, placed = trial, "accent%d" % (i + 1)
-                break
-        if placed:
-            notes.append("primary %s kept exactly, on %s" % (primary, placed))
+        brand = brand[:1]
+
+    targets = (solve_dark if dark else solve_light)(lum["background"], lum["text"], lum["body"], step)
+    base = [rgb_to_hex(at_luminance(hue, hls(hex_to_rgb(primary))[2], y)) for y in targets]
+
+    def fits(c, i):
+        return check_theme(theme_of(base[:i] + [c] + base[i + 1:]), contract)["ok"]
+    placements = place_brand(brand, targets, fits) if mode != "drift" else [None]
+
+    def ramp(placed):
+        """(accents, slots, notes) for one assignment of the brand colours to slots."""
+        if mode == "drift":
+            hues, sat = _ramp_hues(primary, secondary, True)
+            sats = [sat] * 6
+            y = luminance(hex_to_rgb(primary))
+            tries = [(0, sorted(range(6), key=lambda i: abs(f(y) / f(targets[i]) - 1)))]
         else:
-            nearest = order[0]
-            notes.append("primary %s cannot sit on the ramp unchanged (%.1f:1 against %s): accent%d %s is the "
-                         "nearest readable shade of the same hue" % (
-                             primary, ratio(hex_to_rgb(primary), hex_to_rgb(neutrals["background"])),
-                             "the background", nearest + 1, accents[nearest]))
-    theme = _theme(neutrals, accents, primary, dark, secondary)
+            hs = [hls(hex_to_rgb(c)) for _, c in brand]
+            own = [_owner(i, placed) for i in range(6)]
+            hues, sats = [hs[o][0] for o in own], [hs[o][2] for o in own]
+            tries = [(ci, [si]) for si, ci in sorted(placed.items(), key=lambda kv: kv[1])]
+        acc = [rgb_to_hex(at_luminance(hues[i], sats[i], targets[i])) for i in range(6)]
+        got, said = {}, []
+        # Each brand colour, most important first, takes its slot exactly when the whole theme still passes.
+        for ci, candidates in tries:
+            role, c = brand[ci]
+            for i in candidates:
+                trial = acc[:i] + [c] + acc[i + 1:]
+                if _passes(theme_of(trial), contract):
+                    acc = trial
+                    got[role] = "accent%d" % (i + 1)
+                    said.append("%s %s kept exactly, on accent%d" % (role, c, i + 1))
+                    break
+            else:
+                i = candidates[0]
+                got[role] = None
+                said.append("%s %s cannot sit on the ramp unchanged (%.1f:1 against the background): accent%d %s "
+                            "is the nearest readable shade of the same hue" % (
+                                role, c, ratio(hex_to_rgb(c), hex_to_rgb(neutrals["background"])), i + 1, acc[i]))
+        return acc, got, said
+
+    # Two hues of the same lightness can merge in a colour-blind view (red and blue in protanopia): then
+    # try the next best assignments, and keep the best one if none passes (the report warns).
+    first = None
+    for placed in placements:
+        accents, slots, said = ramp(placed)
+        first = first or (accents, slots, said)
+        if _passes(theme_of(accents), contract):
+            break
+    else:
+        accents, slots, said = first
+    notes += said
+    theme = theme_of(accents)
     if secondary and theme["colors"]["hlink"] != secondary:
         notes.append("secondary %s is too faint for links (4.5:1 on background and surface): links use %s" % (
             secondary, theme["colors"]["hlink"]))
-    return {**theme, "notes": notes, "primary_slot": placed}
+    return {**theme, "notes": notes, "primary_slot": slots.get("primary"), "brand_slots": slots}
 
 
 def _link_colour(neutrals, accents, secondary, dark):
@@ -278,8 +401,9 @@ def build(roles: dict, out_dir: Path, thmx: bool = False, contract: dict | None 
             files.append(str(t))
         check = check_theme(theme, contract)
         report["variants"][v] = {"files": files, "colors": theme["colors"], "clrmap": theme["clrmap"],
-                                 "primary_slot": theme["primary_slot"], "notes": theme["notes"],
-                                 "contract_ok": check["ok"], "findings": check["findings"]}
+                                 "primary_slot": theme["primary_slot"], "brand_slots": theme["brand_slots"],
+                                 "notes": theme["notes"], "contract_ok": check["ok"], "findings": check["findings"],
+                                 "view_warnings": view_findings(views_check(theme, contract))}
     first = next(iter(report["variants"].values()))
     fallback = {"theme_fonts_fallback": "Arial"} if report["font_notes"] else {}
     report["deck_json"] = {"theme": first["files"][0], **fallback}
