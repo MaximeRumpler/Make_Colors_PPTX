@@ -1,0 +1,23 @@
+{
+  "name": "make-colors-pptx",
+  "version": "0.2.0",
+  "description": "Turns your brand guidelines, website, example files or logo into a readable PowerPoint theme with your three or four brand colours, fonts and logo, applies it to a deck and shows it before and after. English and French.",
+  "author": {
+    "name": "Maxime Rumpler",
+    "url": "https://github.com/MaximeRumpler"
+  },
+  "homepage": "https://github.com/MaximeRumpler/Make_Colors_PPTX",
+  "repository": "https://github.com/MaximeRumpler/Make_Colors_PPTX",
+  "license": "EUPL-1.2",
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "theme",
+    "brand",
+    "colours",
+    "fonts",
+    "logo",
+    "skill"
+  ],
+  "skills": "./skills"
+}

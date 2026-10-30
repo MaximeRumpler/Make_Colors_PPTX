@@ -60,8 +60,9 @@ def test_contract_copy_matches_make_clean():
                sorted((p["text"], p["on"], p["min_ratio"]) for p in theirs["pairs"])
 
 
-def test_no_private_links_in_readme():
-    """Public pages never link to a private repository (Make_Style_PPTX is private until released)."""
+def test_readme_links_the_whole_set():
+    """The README carries the shared set table: it links to the three skills and the home page."""
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     links = re.findall(r"\]\((https?://[^)]+)\)", readme)
-    assert not [u for u in links if "Make_Style_PPTX" in u]
+    for repo in ("Make_PPTX", "Make_Clean_PPTX", "Make_Style_PPTX", "Make_Colors_PPTX"):
+        assert any(f"github.com/MaximeRumpler/{repo}" in u for u in links), repo
