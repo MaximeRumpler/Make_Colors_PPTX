@@ -4,7 +4,6 @@
 
 *Give your deck your brand. Three or four colours, your fonts and your logo, from what you already have.*
 
-<sub lang="fr">En français : mettez votre présentation aux couleurs de votre marque, à partir de ce que vous avez déjà.</sub>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/MaximeRumpler/Make_Colors_PPTX/ci.yml?branch=main&style=flat-square&label=CI&color=10B981&labelColor=1C2333)](https://github.com/MaximeRumpler/Make_Colors_PPTX/actions/workflows/ci.yml)
 [![Licence](https://img.shields.io/badge/Licence-EUPL--1.2-10B981?style=flat-square&labelColor=1C2333)](LICENSE)
@@ -20,6 +19,12 @@
 Make_Colors_PPTX is a *skill*: a folder of instructions and small tools that an AI assistant such as Claude or Codex uses to put a brand on presentations.
 
 [Make_Clean_PPTX](https://github.com/MaximeRumpler/Make_Clean_PPTX) gives your notes their **form**, in black, grey and white. Make_Colors_PPTX gives them **your brand**: it reads what you have, builds a real PowerPoint theme from it and applies it to the deck. It never changes your content or your layout.
+
+Each skill does one job, and you only use the ones you need:
+
+<p align="center">
+  <img src="/assets/Make_PPT_flow.svg" alt="Make PowerPoint Flow" width="100%" />
+</p>
 
 You give it whatever you have:
 
