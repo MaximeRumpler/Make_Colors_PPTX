@@ -24,3 +24,5 @@ Make_Colors brands a deck in one of two ways, so the order of the skills does no
 - afterwards, with `apply_theme.py`, which replaces only the theme's colour and font schemes and the master's colour map. Slides, shapes and shape names (Make_Style's role tags `<role>#<n> > <field>`) are copied byte for byte.
 
 A Make_Style pack that keeps theme colours and theme fonts (no fixed RGB) is therefore branded exactly like a Make_Clean deck. `apply_theme.py` reports `fixed_colours` so a pack that hard-codes colours shows up at once.
+
+[[Make_Clean_PPTX]]

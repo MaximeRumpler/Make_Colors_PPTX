@@ -87,3 +87,5 @@ The logo is not part of the theme. Make_Clean places it from the `"logo"` key of
 8. The before/after preview shows no overflow and nothing unreadable.
 9. A light logo exists for dark covers, if a dark variant is delivered.
 10. The user saw the before/after image and agreed.
+
+[[Make_Clean_PPTX]]

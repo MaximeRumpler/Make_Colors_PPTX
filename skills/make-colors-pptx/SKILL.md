@@ -100,3 +100,5 @@ When the user asks whether an existing deck or template is readable or on brand:
 - `references/colour-rules.md`: 60-30-10, the accent ramp, contrast, colour-blind safety, dark themes, fonts, logo, with the reasons. Read before step 3.
 - `references/roles-reference.md`: the roles file, how slots are filled, the outputs, and applying the theme (Make_Clean, Make_Style, any deck).
 - `assets/theme-contract.json`: copy of Make_Clean_PPTX's theme contract (pass `--contract` to use a newer one).
+
+[[AI]]
