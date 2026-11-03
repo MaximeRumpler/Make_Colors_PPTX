@@ -12,7 +12,10 @@ Reads, offline:
   only listed;
 - an image or logo (.png .jpg .jpeg .gif .webp .bmp): the main colours by share of the visible
   pixels (Pillow palette quantisation, transparent pixels ignored);
-- a PDF brand guide is not parsed: read it yourself (hex, RGB, CMYK and Pantone values, font names).
+- a PDF brand guide (.pdf, needs poppler's pdftotext; pdffonts adds the font names): the hex, RGB and
+  CMYK values written in its text, each with the words before it on the same line (e.g. "Primary blue").
+  CMYK is converted naively and flagged approximate; Pantone names are only listed. A guide that shows
+  its colours as pictures only gives nothing: read it yourself then.
 
 Web fonts that PowerPoint does not have get a suggested fallback. "brand_hues" lists up to four
 candidates of clearly different hues (greys and shades of a hue already listed left out), in the
@@ -276,6 +279,82 @@ def read_image(path: Path, pool: Pool, notes: list, colours: int = 10):
         pool.add(rgb_to_hex(rgb), "image %s" % path.name, count, share=count / total)
 
 
+# ------------------------------------------------------------------ PDF brand guides
+_NUM = r"(\d{1,3}(?:[.,]\d+)?)"
+RGB_RE = re.compile(r"\bR(?:GB)?\b[\s:=]*" + _NUM + r"[\s,;/G:=]+" + _NUM + r"[\s,;/B:=]+" + _NUM, re.I)
+CMYK_RE = re.compile(r"\bC(?:MYK)?\b[\s:=]*" + _NUM + r"%?[\s,;/M:=]+" + _NUM + r"%?[\s,;/Y:=]+" + _NUM
+                     + r"%?[\s,;/K:=]+" + _NUM, re.I)
+PANTONE_RE = re.compile(r"\bPantone\s+([A-Z0-9 .-]{2,18}?)(?:\s+[CUM]\b|\b)", re.I)
+
+
+def cmyk_to_hex(c, m, y, k) -> str:
+    """Naive CMYK -> sRGB (no ICC profile), values 0-100. Close enough to propose, not to print."""
+    c, m, y, k = (max(0.0, min(100.0, v)) / 100 for v in (c, m, y, k))
+    return rgb_to_hex(tuple((1 - ch) * (1 - k) for ch in (c, m, y)))
+
+
+def _label(line: str, start: int) -> str:
+    before = re.sub(r"[^\w &/'-]+", " ", line[:start]).strip()
+    return " ".join(before.split()[-4:])
+
+
+def read_pdf(path: Path, pool: Pool, fonts: dict, notes: list):
+    import shutil
+    import subprocess
+    if not shutil.which("pdftotext"):
+        notes.append("%s: reading PDF needs poppler's pdftotext (not found); read the guide yourself for hex, "
+                     "RGB, CMYK or Pantone values and font names" % path.name)
+        return False
+    run = subprocess.run(["pdftotext", "-layout", str(path), "-"], capture_output=True, text=True, timeout=60)
+    if run.returncode != 0:
+        notes.append("%s: pdftotext could not read it (%s)" % (path.name, run.stderr.strip()[:80]))
+        return False
+    found = approx = 0
+    pantones = set()
+    for page, text in enumerate(run.stdout.split("\f"), 1):
+        for line in text.splitlines():
+            where = "pdf %s p%d" % (path.name, page)
+            for m in COLOR_RE.finditer(line):
+                hx = css_colour(m.group(0))
+                if hx:
+                    lab = _label(line, m.start())
+                    pool.add(hx, where + (' "%s"' % lab if lab else ""), 1.0)
+                    found += 1
+            for m in RGB_RE.finditer(line):
+                vals = [float(g.replace(",", ".")) for g in m.groups()]
+                if all(v <= 255 for v in vals):
+                    lab = _label(line, m.start())
+                    pool.add(rgb_to_hex(tuple(v / 255 for v in vals)), where + (' "%s"' % lab if lab else ""), 1.0)
+                    found += 1
+            for m in CMYK_RE.finditer(line):
+                vals = [float(g.replace(",", ".")) for g in m.groups()]
+                if all(v <= 100 for v in vals):
+                    lab = _label(line, m.start())
+                    pool.add(cmyk_to_hex(*vals), where + (' "%s"' % lab if lab else "") + " (CMYK, approximate)", 1.0)
+                    found += 1
+                    approx += 1
+            pantones.update(" ".join(m.group(1).split()) for m in PANTONE_RE.finditer(line))
+    if shutil.which("pdffonts"):
+        fl = subprocess.run(["pdffonts", str(path)], capture_output=True, text=True, timeout=60).stdout
+        for row in fl.splitlines()[2:]:
+            name = row.split(" ")[0] if row.strip() else ""
+            name = re.sub(r"^[A-Z]{6}\+", "", name)
+            name = re.sub(r"[-,](Bold|Italic|Regular|Light|Medium|Semibold|BoldItalic|Black).*$", "", name, flags=re.I)
+            name = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name).strip()
+            if name and name.lower() not in ("name", "-----"):
+                fonts[name].add("pdf %s" % path.name)
+    if not found:
+        notes.append("%s: no hex, RGB or CMYK value in its text (colours shown as pictures?); read the guide "
+                     "yourself and ask the user which are primary" % path.name)
+    if approx:
+        notes.append("%s: CMYK values converted without a colour profile, so the hex is approximate" % path.name)
+    if pantones:
+        notes.append("%s mentions Pantone %s: no exact hex, ask the user for the screen value" % (
+            path.name, ", ".join(sorted(pantones)[:6])))
+    return True
+
+
+
 def _hue_angle(hexval: str) -> float:
     _, a, b = to_lab(hex_to_rgb(hexval))
     return math.degrees(math.atan2(b, a)) % 360
@@ -317,9 +396,8 @@ def extract(paths, top: int = 12) -> dict:
         elif ext in IMAGES:
             read_image(p, pool, notes)
         elif ext == ".pdf":
-            notes.append("%s: PDF brand guides are not parsed; read it yourself for hex, RGB, CMYK or Pantone "
-                         "values and font names, and ask the user which are primary" % p.name)
-            continue
+            if not read_pdf(p, pool, fonts, notes):
+                continue
         else:
             notes.append("%s: unsupported file type %s" % (p.name, ext))
             continue
