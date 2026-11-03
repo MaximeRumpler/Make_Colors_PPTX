@@ -476,6 +476,36 @@ def slug(name: str) -> str:
     return s or "brand"
 
 
+LARGE_TEXT = 3.0  # WCAG large text and graphics: what the emphasis colour needs on the slide background
+
+
+def deck_options(roles: dict, variant: dict) -> list:
+    """Optional Make_Clean deck.json keys that suit this palette. Suggestions with a reason, never applied alone."""
+    out = []
+    colours = variant["colors"]
+    paper = hex_to_rgb(colours["dk1" if variant.get("clrmap") else "lt1"])  # a dark theme swaps the map
+    slot = variant.get("primary_slot")
+    if slot and slot != "accent1":  # a mid-tone main colour: it sits on a middle accent, not on the dark panels
+        r = ratio(hex_to_rgb(colours[slot]), paper)
+        if r >= LARGE_TEXT:
+            out.append({"key": "emphasis", "value": slot, "why": (
+                "the main colour sits on %s, so the dark panels stay on accent1; emphasis puts it on the key "
+                "numbers (large text, %.1f:1 on the background)" % (slot, r))})
+    n = len(variant["brand_slots"])  # brand colours on the ramp, kept exactly or as a shade
+    if n >= 3 and (roles.get("ramp") or "brand") == "brand":
+        out.append({"key": "accent_scale", "value": "tints", "why": (
+            "%d brand colours share the ramp, so scales (heat grids, funnels, levels) would show %d hues: "
+            "tints of accent1 read as levels" % (n, n))})
+    return out
+
+
+def options_value(options: list, key: str, wanted):
+    """The value for deck.json: a slot name or "tints" as given, else the suggestion's, else None."""
+    if isinstance(wanted, str):
+        return wanted
+    return next((o["value"] for o in options if o["key"] == key), None)
+
+
 def build(roles: dict, out_dir: Path, thmx: bool = False, contract: dict | None = None) -> dict:
     contract = contract or load_contract()
     if not roles.get("primary"):
@@ -508,6 +538,13 @@ def build(roles: dict, out_dir: Path, thmx: bool = False, contract: dict | None 
     first = next(iter(report["variants"].values()))
     fallback = {"theme_fonts_fallback": "Arial"} if report["font_notes"] else {}
     report["deck_json"] = {"theme": first["files"][0], **fallback}
+    options = deck_options(roles, report["variants"].get("light") or first)
+    report["options"] = options  # suggestions only: nothing here is added to deck_json unless roles.json asks
+    for key in ("emphasis", "accent_scale"):
+        if roles.get(key):  # explicit in roles.json: the user chose it
+            wanted = options_value(options, key, roles[key])
+            if wanted:
+                report["deck_json"][key] = wanted
     report["ok"] = all(x["contract_ok"] for x in report["variants"].values())
     return report
 

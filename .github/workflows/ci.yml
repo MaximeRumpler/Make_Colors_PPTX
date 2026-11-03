@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: MaximeRumpler/Make_Clean_PPTX
-          ref: v1.2.0
+          ref: 384b1827eb72d8fcd0d6d985c15fc6e3a2ff2714  # main after #40: logo_dark, emphasis, accent_scale
           path: make-clean
       # Round trip 2: Make_Clean -> Make_Style (restyle) -> brand theme from here.
       - uses: actions/checkout@v7

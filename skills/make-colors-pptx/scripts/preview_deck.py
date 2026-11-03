@@ -61,9 +61,11 @@ def _run(cmd, cwd=None):
     return p.returncode, out, p.stderr[-2000:]
 
 
-def _spec(deck: dict, base_dir: Path, out: Path, theme=None, logo=None, fallback=None) -> dict:
-    spec = {k: v for k, v in deck.items() if not k.startswith("_") and k not in ("theme", "logo", "logo_alt",
-                                                                                   "theme_fonts_fallback")}
+BRAND_KEYS = ("theme", "logo", "logo_alt", "logo_dark", "theme_fonts_fallback", "emphasis", "accent_scale")
+
+
+def _spec(deck: dict, base_dir: Path, out: Path, theme=None, logo=None, fallback=None, extra=None) -> dict:
+    spec = {k: v for k, v in deck.items() if not k.startswith("_") and k not in BRAND_KEYS}
     spec["output"] = str(out)
     if theme:
         spec["theme"] = str(Path(theme).resolve())
@@ -72,6 +74,8 @@ def _spec(deck: dict, base_dir: Path, out: Path, theme=None, logo=None, fallback
     if logo:
         spec["logo"] = str(Path(logo).resolve())
         spec["logo_alt"] = deck.get("logo_alt") or "Logo"
+    for k, v in (extra or {}).items():  # logo_dark (a file), emphasis, accent_scale: Make_Clean deck.json keys
+        spec[k] = str(Path(v).resolve()) if k == "logo_dark" else v
     # Relative image paths in the user's deck keep pointing next to their deck.json.
     for s in spec.get("slides", []):
         for k, v in list((s.get("fill") or {}).items()):
@@ -105,7 +109,7 @@ def side_by_side(before: Path, after: Path, out: Path) -> str:
 
 
 def preview(theme, logo=None, deck=None, out_dir="build/colors-preview", make_clean=None, fallback=None,
-            render=True, pptx=None) -> dict:
+            render=True, pptx=None, extra=None) -> dict:
     mc = find_make_clean(make_clean)
     if not mc:
         return {"error": "Make_Clean_PPTX not found: install it next to this skill, or pass --make-clean "
@@ -124,14 +128,15 @@ def preview(theme, logo=None, deck=None, out_dir="build/colors-preview", make_cl
         if logo:
             res["theme_warnings"].append("--logo is not used with --pptx: the logo is placed when Make_Clean builds")
     return _check_and_render(res, mc, out_dir, render) if pptx else _build(res, mc, out_dir, render, theme, logo,
-                                                                          deck, fallback)
+                                                                          deck, fallback, extra)
 
 
-def _build(res, mc, out_dir, render, theme, logo, deck, fallback) -> dict:
+def _build(res, mc, out_dir, render, theme, logo, deck, fallback, extra=None) -> dict:
     deck_path = Path(deck) if deck else SAMPLE
     data = json.loads(deck_path.read_text(encoding="utf-8"))
     for label, th, lg in (("before", None, None), ("after", theme, logo)):
-        spec = _spec(data, deck_path.parent.resolve(), out_dir / ("%s.pptx" % label), th, lg, fallback)
+        spec = _spec(data, deck_path.parent.resolve(), out_dir / ("%s.pptx" % label), th, lg, fallback,
+                     extra if label == "after" else None)
         spec_path = out_dir / ("%s.json" % label)
         spec_path.write_text(json.dumps(spec, indent=1, ensure_ascii=False), encoding="utf-8")
         code, out, err = _run([mc / "scripts" / "build_deck.py", "--spec", spec_path], cwd=out_dir)
@@ -175,9 +180,14 @@ def main(argv=None) -> int:
     ap.add_argument("--out-dir", default="build/colors-preview")
     ap.add_argument("--make-clean", help="folder of the make-clean-pptx skill (or a clone of its repository)")
     ap.add_argument("--fonts-fallback", help='font used when the brand font is missing, e.g. "Arial"')
+    ap.add_argument("--logo-dark", help="light version of the logo for dark slides (logo_light.py makes one)")
+    ap.add_argument("--emphasis", help="theme accent for key numbers, e.g. accent3 (deck.json emphasis)")
+    ap.add_argument("--accent-scale", choices=("tints", "colours"), help="deck.json accent_scale")
     ap.add_argument("--no-render", action="store_true", help="build and lint only")
     a = ap.parse_args(argv)
-    res = preview(a.theme, a.logo, a.deck, a.out_dir, a.make_clean, a.fonts_fallback, not a.no_render, a.pptx)
+    extra = {k: v for k, v in (("logo_dark", a.logo_dark), ("emphasis", a.emphasis),
+                               ("accent_scale", a.accent_scale)) if v}
+    res = preview(a.theme, a.logo, a.deck, a.out_dir, a.make_clean, a.fonts_fallback, not a.no_render, a.pptx, extra)
     print(json.dumps(res, indent=1, ensure_ascii=False))
     return res.get("code", 0) if "error" in res else 0
 
