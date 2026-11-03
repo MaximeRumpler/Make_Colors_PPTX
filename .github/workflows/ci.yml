@@ -19,6 +19,7 @@ jobs:
         python-version: ["3.9", "3.12"]
     env:
       MAKE_CLEAN_PPTX_DIR: ${{ github.workspace }}/make-clean
+      MAKE_STYLE_PPTX_DIR: ${{ github.workspace }}/make-style
     steps:
       - uses: actions/checkout@v7
       # Round trip: Make_Clean_PPTX (public) loads the themes built here and builds a deck with them.
@@ -27,10 +28,16 @@ jobs:
           repository: MaximeRumpler/Make_Clean_PPTX
           ref: v1.2.0
           path: make-clean
+      # Round trip 2: Make_Clean -> Make_Style (restyle) -> brand theme from here.
+      - uses: actions/checkout@v7
+        with:
+          repository: MaximeRumpler/Make_Style_PPTX
+          ref: bcb896f4c28a7215bb3c4ace14b35285d2e1feb8
+          path: make-style
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: requirements-dev.txt
-      - run: pip install -r requirements-dev.txt -r make-clean/skills/make-clean-pptx/requirements.txt
+      - run: pip install -r requirements-dev.txt -r make-clean/skills/make-clean-pptx/requirements.txt -r make-style/skills/make-style-pptx/requirements.txt
       - run: pytest

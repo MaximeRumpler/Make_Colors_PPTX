@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import zipfile
 
 import pytest
@@ -11,7 +13,7 @@ import apply_theme
 import build_theme
 import preview_deck
 from _colour import load_theme
-from conftest import make_clean_dir
+from conftest import make_clean_dir, make_style_dir
 
 P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
 
@@ -96,3 +98,26 @@ def test_make_clean_deck_then_theme(tmp_path, themes):
     if contrast is not None:
         assert contrast["failing_shapes"] == 0 and contrast["theme_findings"] == []
     assert json.dumps(res)
+
+
+@pytest.mark.parametrize("style", ["organic", "paper"])
+def test_make_clean_then_make_style_then_brand(tmp_path, themes, capsys, style):
+    """Clean -> Style -> Colors: the restyled deck takes the brand theme with no fixed colour and no failing text."""
+    mc, ms = make_clean_dir(), make_style_dir()
+    if not (mc and ms):
+        pytest.skip("Make_Clean_PPTX or Make_Style_PPTX not available")
+    neutral = preview_deck.preview(themes["light"]["files"][0], out_dir=tmp_path / "built", make_clean=mc,
+                                   render=False)
+    assert "error" not in neutral, neutral
+    styled = tmp_path / ("styled-%s.pptx" % style)
+    run = subprocess.run([sys.executable, str(ms / "scripts" / "restyle.py"), neutral["decks"]["before"],
+                          "--style", style, "--out", str(styled)], capture_output=True, text=True)
+    assert run.returncode == 0, run.stdout + run.stderr
+    out = tmp_path / ("branded-%s.pptx" % style)
+    capsys.readouterr()
+    code = apply_theme.main([str(styled), "--theme", themes["light"]["files"][0], "--out", str(out)])
+    rep = json.loads(capsys.readouterr().out)
+    assert code == 0, rep
+    assert rep["fixed_colours"] == 0, rep
+    names = [sh.name for sl in Presentation(str(out)).slides for sh in sl.shapes]
+    assert any(" > " in n for n in names), names  # Make_Style role tags survive byte for byte

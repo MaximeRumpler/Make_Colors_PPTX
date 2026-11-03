@@ -18,6 +18,13 @@ def make_clean_dir():
     return find_make_clean(os.environ.get("MAKE_CLEAN_PPTX_DIR") or ROOT.parent / "Make_Clean_PPTX")
 
 
+def make_style_dir():
+    """The Make_Style_PPTX skill folder, when available (CI checks it out; locally a sibling clone works)."""
+    base = Path(os.environ.get("MAKE_STYLE_PPTX_DIR") or ROOT.parent / "Make_Style_PPTX")
+    skill = base / "skills" / "make-style-pptx"
+    return skill if (skill / "scripts" / "restyle.py").is_file() else None
+
+
 @pytest.fixture
 def harbour_roles():
     return {"name": "Demo Harbour", "primary": "#1D4E89", "secondary": "#E07A1F",
