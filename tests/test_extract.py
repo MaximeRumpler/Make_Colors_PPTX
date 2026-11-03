@@ -1,5 +1,7 @@
+import shutil
 import json
 
+import pytest
 from PIL import Image, ImageDraw
 
 import build_theme
@@ -75,7 +77,7 @@ def test_svg_and_pdf(tmp_path, capsys):
     (tmp_path / "guide.pdf").write_bytes(b"%PDF-1.4")
     res = ex.extract([tmp_path / "logo.svg", tmp_path / "guide.pdf"])
     assert {"#7A1E5A", "#FAC828"} <= {c["hex"] for c in res["colours"]}
-    assert any("PDF" in n for n in res["notes"])
+    assert any("guide.pdf" in n for n in res["notes"])
     assert ex.main([str(tmp_path / "logo.svg"), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["colours"]
     assert ex.main([str(tmp_path / "guide.pdf")]) == 2
@@ -95,3 +97,44 @@ def test_brand_hues_of_a_one_hue_theme(tmp_path, harbour_roles):
     rep = build_theme.build({**harbour_roles, "ramp": "single", "secondary": None}, tmp_path)
     res = ex.extract([rep["variants"]["light"]["files"][0]])
     assert len(res["brand_hues"]) == 1  # six shades of one blue are one brand hue
+
+
+def _text_pdf(path, lines):
+    """A one-page PDF with plain Helvetica text, built by hand (no PDF library needed)."""
+    body = "BT /F1 12 Tf 40 780 Td 16 TL " + " ".join("(%s) Tj T*" % ln for ln in lines) + " ET"
+    objs = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R "
+            "/Resources << /Font << /F1 5 0 R >> >> >>",
+            "<< /Length %d >>\nstream\n%s\nendstream" % (len(body), body),
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    out, offsets = b"%PDF-1.4\n", []
+    for i, o in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += ("%d 0 obj\n%s\nendobj\n" % (i, o)).encode()
+    xref = len(out)
+    out += ("xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)).encode()
+    out += b"".join(("%010d 00000 n \n" % o).encode() for o in offsets)
+    out += ("trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)).encode()
+    path.write_bytes(out)
+
+
+@pytest.mark.skipif(shutil.which("pdftotext") is None, reason="poppler is not installed")
+def test_pdf_brand_guide_values(tmp_path):
+    pdf = tmp_path / "guide.pdf"
+    _text_pdf(pdf, ["Primary blue HEX #1D4E89", "Accent orange RGB 224 122 31",
+                    "Support green CMYK 80 0 40 20", "Pantone 7692 C for print"])
+    res = ex.extract([pdf])
+    got = {c["hex"]: " ".join(c["sources"]) for c in res["colours"]}
+    assert "#1D4E89" in got and "Primary blue" in got["#1D4E89"]
+    assert "#E07A1F" in got and "Accent orange" in got["#E07A1F"]
+    green = next(h for h, src in got.items() if "CMYK" in src)
+    assert "approximate" in got[green]
+    assert any("Pantone" in n for n in res["notes"]) and any("approximate" in n for n in res["notes"])
+
+
+def test_pdf_without_poppler_says_so(tmp_path, monkeypatch):
+    pdf = tmp_path / "guide.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    res = ex.extract([pdf])
+    assert res["read"] == [] and any("pdftotext" in n for n in res["notes"])
