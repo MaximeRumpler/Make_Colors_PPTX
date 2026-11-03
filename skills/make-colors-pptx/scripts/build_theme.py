@@ -15,7 +15,8 @@ Make_Clean_PPTX's deck.json: "theme": "brand/<slug>.potx".
 The six accents become one ramp from strong to faint, with lightness solved so every pair of the
 theme contract passes. Up to four brand colours (primary, secondary, others) each take the ramp slot
 nearest their own lightness, exactly when the theme still passes there, else as the nearest readable
-shade of the same hue; the slots in between are shades of the nearest brand colour. "ramp": "single"
+shade of the same hue (the other slots move around a kept colour, and body text gets a little stronger when a
+mid-tone colour needs it); the slots in between are shades of the nearest brand colour. "ramp": "single"
 keeps the primary hue only, "drift" slides from the primary to the secondary hue. Prints a JSON
 report: files, slots, where each brand colour went, contract check, colour-blind views, font notes.
 Exit code 0 when every variant passes the contract, 1 when a variant still has findings (files are
@@ -69,28 +70,73 @@ def _clamp(v, lo, hi):
     return max(lo, min(hi, v)) if lo <= hi else (lo + hi) / 2
 
 
-def solve_light(paper, ink, ink2, step=1.1):
-    """Accent luminances for a light theme, given the luminance of paper, ink and ink2 (body text)."""
-    t, m = LIGHT_TARGETS, MARGIN
-    a3 = _clamp(t[2], 4.5 * m * f(ink) - 0.05, f(paper) / (3.0 * m) - 0.05)
-    a1 = min(t[0], min(f(paper), f(a3)) / (4.5 * m) - 0.05)
-    a2 = _clamp(t[1], f(a1) * step * m - 0.05, min(f(paper) / (4.5 * m), f(a3) / (step * m)) - 0.05)
-    a5 = max(t[4], 4.5 * m * f(a2) - 0.05)
-    a4 = _clamp(t[3], max(4.5 * m * f(ink2), f(a3) * step * m) - 0.05, f(a5) / (step * m) - 0.05)
-    a6 = max(t[5], f(a5) * step * m - 0.05)
-    return [max(0.0, a1), a2, a3, a4, a5, min(1.0, a6)]
+def _relax(a, pins, bounds, passes=8):
+    """Clamp every free slot into the bounds set by its neighbours until nothing moves.
+
+    `a` holds the target luminances, `pins` {slot index: luminance} the slots fixed by an exact brand
+    colour; `bounds(a, i)` gives (low, high) for slot i from the current values of the others.
+    """
+    a = list(a)
+    for i, y in pins.items():
+        a[i] = y
+    for _ in range(passes):
+        moved = False
+        for i in range(6):
+            if i in pins:
+                continue
+            lo, hi = bounds(a, i)
+            v = _clamp(a[i], lo, hi)
+            if abs(v - a[i]) > 1e-9:
+                a[i], moved = v, True
+        if not moved:
+            break
+    return [max(0.0, min(1.0, v)) for v in a]
 
 
-def solve_dark(paper, ink, ink2, step=1.1):
+def solve_light(paper, ink, ink2, step=1.1, pins=None):
+    """Accent luminances for a light theme, given the luminance of paper, ink and ink2 (body text).
+
+    `pins` {slot index: luminance} keeps those slots fixed and lets the others move around them.
+    """
+    m = MARGIN
+    s = step * m
+
+    def bounds(a, i):
+        if i == 0:
+            return 0.0, min(f(paper) / (4.5 * m), f(a[2]) / (4.5 * m), f(a[1]) / s) - 0.05
+        if i == 1:
+            return f(a[0]) * s - 0.05, min(f(paper) / (4.5 * m), f(a[2]) / s, f(a[4]) / (4.5 * m)) - 0.05
+        if i == 2:
+            return (max(4.5 * m * f(ink), f(a[1]) * s, 4.5 * m * f(a[0])) - 0.05,
+                    min(f(paper) / (3.0 * m), f(a[3]) / s) - 0.05)
+        if i == 3:
+            return max(4.5 * m * f(ink2), f(a[2]) * s) - 0.05, f(a[4]) / s - 0.05
+        if i == 4:
+            return max(4.5 * m * f(a[1]), f(a[3]) * s) - 0.05, f(a[5]) / s - 0.05
+        return f(a[4]) * s - 0.05, 1.0
+    return _relax(LIGHT_TARGETS, pins or {}, bounds)
+
+
+def solve_dark(paper, ink, ink2, step=1.1, pins=None):
     """Accent luminances for a dark theme (accent1 lightest): paper is dark, ink and ink2 are light."""
-    t, m = DARK_TARGETS, MARGIN
-    a3 = _clamp(t[2], 3.0 * m * f(paper) - 0.05, f(ink) / (4.5 * m) - 0.05)
-    a1 = max(t[0], 4.5 * m * max(f(paper), f(a3)) - 0.05)
-    a2 = _clamp(t[1], max(4.5 * m * f(paper), f(a3) * step * m) - 0.05, f(a1) / (step * m) - 0.05)
-    a5 = min(t[4], f(a2) / (4.5 * m) - 0.05)
-    a4 = _clamp(t[3], f(a5) * step * m - 0.05, min(f(a3) / (step * m), f(ink2) / (4.5 * m)) - 0.05)
-    a6 = min(t[5], f(a5) / (step * m) - 0.05)
-    return [min(1.0, a1), a2, a3, a4, a5, max(0.0, a6)]
+    m = MARGIN
+    s = step * m
+
+    def bounds(a, i):
+        if i == 0:
+            return max(4.5 * m * max(f(paper), f(a[2])), f(a[1]) * s) - 0.05, 1.0
+        if i == 1:
+            return (max(4.5 * m * f(paper), f(a[2]) * s, 4.5 * m * f(a[4])) - 0.05,
+                    f(a[0]) / s - 0.05)
+        if i == 2:
+            return (max(3.0 * m * f(paper), f(a[3]) * s) - 0.05,
+                    min(f(ink) / (4.5 * m), f(a[1]) / s, f(a[0]) / (4.5 * m)) - 0.05)
+        if i == 3:
+            return f(a[4]) * s - 0.05, min(f(a[2]) / s, f(ink2) / (4.5 * m)) - 0.05
+        if i == 4:
+            return f(a[5]) * s - 0.05, min(f(a[1]) / (4.5 * m), f(a[3]) / s) - 0.05
+        return 0.0, f(a[4]) / s - 0.05
+    return _relax(DARK_TARGETS, pins or {}, bounds)
 
 
 def _tint(hexval, hue, amount):
@@ -169,8 +215,35 @@ def _passes(theme: dict, contract: dict) -> bool:
     return check_theme(theme, contract)["ok"] and not view_findings(views_check(theme, contract))
 
 
+BODY_STEPS = {False: ("333333", "262626"), True: ("E8E8E8", "F2F2F2")}  # body text, a little stronger, per theme
+
+
 def make_variant(roles: dict, dark: bool, contract: dict) -> dict:
-    """Colour slots of one variant: {"colors", "clrmap", "notes", "primary_slot", "brand_slots"}."""
+    """Colour slots of one variant: {"colors", "clrmap", "notes", "primary_slot", "brand_slots"}.
+
+    Body text (dk2) is a free choice of the theme, so when a mid-tone brand colour cannot keep its exact value
+    against the default body text (4.5:1 on its slot), body text is made a little stronger, one step at a time,
+    for as long as that keeps more brand colours exact. A body colour given in roles.json is never touched.
+    """
+    best = _variant(roles, dark, contract)
+    given = (roles.get("dark") if dark else roles.get("neutrals")) or {}
+    if given.get("body") or roles.get("_body") or roles.get("accents") or roles.get("dark_accents"):
+        return best
+
+    def kept(v):
+        return sum(1 for x in v["brand_slots"].values() if x)
+    for body in BODY_STEPS[dark]:
+        if kept(best) == len(best["brand_slots"]):
+            break
+        trial = _variant({**roles, "_body": body}, dark, contract)
+        if kept(trial) > kept(best):
+            trial["notes"].append("body text set to #%s (default %s) so that more brand colours stay exact" % (
+                body, (DARK_NEUTRALS if dark else LIGHT_NEUTRALS)["body"]))
+            best = trial
+    return best
+
+
+def _variant(roles: dict, dark: bool, contract: dict) -> dict:
     notes = []
     primary = parse_hex(roles["primary"])
     secondary = parse_hex(roles["secondary"]) if roles.get("secondary") else None
@@ -178,7 +251,9 @@ def make_variant(roles: dict, dark: bool, contract: dict) -> dict:
     if mode not in RAMP_MODES:
         raise ValueError("ramp can be %s, not %r" % (", ".join(RAMP_MODES), mode))
     hue = hls(hex_to_rgb(primary))[0]
-    given = (roles.get("dark") if dark else roles.get("neutrals")) or {}
+    given = dict((roles.get("dark") if dark else roles.get("neutrals")) or {})
+    if roles.get("_body"):
+        given["body"] = roles["_body"]
     neutrals = dict(DARK_NEUTRALS if dark else LIGHT_NEUTRALS)
     if roles.get("tint_neutrals"):
         neutrals = {k: _tint(v, hue, 0.18 if k in ("background", "surface") else 0.25) for k, v in neutrals.items()}
@@ -210,8 +285,18 @@ def make_variant(roles: dict, dark: bool, contract: dict) -> dict:
     targets = (solve_dark if dark else solve_light)(lum["background"], lum["text"], lum["body"], step)
     base = [rgb_to_hex(at_luminance(hue, hls(hex_to_rgb(primary))[2], y)) for y in targets]
 
+    solver = solve_dark if dark else solve_light
+
+    def solved(pins):
+        """Luminance targets with the slots in `pins` {slot: hex} fixed and the others moved around them."""
+        return solver(lum["background"], lum["text"], lum["body"], step,
+                      {i: luminance(hex_to_rgb(c)) for i, c in pins.items()})
+
     def fits(c, i):
-        return check_theme(theme_of(base[:i] + [c] + base[i + 1:]), contract)["ok"]
+        tg = solved({i: c})
+        trial = [c if j == i else rgb_to_hex(at_luminance(hue, hls(hex_to_rgb(primary))[2], tg[j]))
+                 for j in range(6)]
+        return check_theme(theme_of(trial), contract)["ok"]
     placements = place_brand(brand, targets, fits) if mode != "drift" else [None]
 
     def ramp(placed):
@@ -225,21 +310,37 @@ def make_variant(roles: dict, dark: bool, contract: dict) -> dict:
             hs = [hls(hex_to_rgb(c)) for _, c in brand]
             own = [_owner(i, placed) for i in range(6)]
             hues, sats = [hs[o][0] for o in own], [hs[o][2] for o in own]
-            tries = [(ci, [si]) for si, ci in sorted(placed.items(), key=lambda kv: kv[1])]
-        acc = [rgb_to_hex(at_luminance(hues[i], sats[i], targets[i])) for i in range(6)]
+            # Its own slot first, then the nearest slot no other brand colour is placed on (accent1 only for a colour
+            # close to it): a slot belongs to the hue that is placed there.
+            tries = []
+            for si, ci in sorted(placed.items(), key=lambda kv: kv[1]):
+                y = luminance(hex_to_rgb(brand[ci][1]))
+                near = [j for j in sorted(range(6), key=lambda j: abs(j - si))
+                        if j not in placed and (j or abs(math.log(f(y) / f(targets[0]))) <= ACCENT1_REACH)]
+                tries.append((ci, [si] + near))
+        def paint(pins):
+            """Accents for one set of exact slots: the others re-solved around them, in their own hue."""
+            tg = solved(pins)
+            return [pins[i] if i in pins else rgb_to_hex(at_luminance(hues[i], sats[i], tg[i])) for i in range(6)]
+        pins = {}
+        acc = paint(pins)
         got, said = {}, []
-        # Each brand colour, most important first, takes its slot exactly when the whole theme still passes.
+        # Each brand colour, most important first, takes its slot exactly when the whole theme still passes,
+        # the slots around it moving as far as the contract needs.
         for ci, candidates in tries:
             role, c = brand[ci]
             for i in candidates:
-                trial = acc[:i] + [c] + acc[i + 1:]
+                if i in pins:
+                    continue
+                trial = paint({**pins, i: c})
                 if _passes(theme_of(trial), contract):
                     acc = trial
+                    pins[i] = c
                     got[role] = "accent%d" % (i + 1)
                     said.append("%s %s kept exactly, on accent%d" % (role, c, i + 1))
                     break
             else:
-                i = candidates[0]
+                i = next((j for j in candidates if j not in pins), candidates[0])
                 got[role] = None
                 said.append("%s %s cannot sit on the ramp unchanged (%.1f:1 against the background): accent%d %s "
                             "is the nearest readable shade of the same hue" % (

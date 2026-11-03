@@ -204,3 +204,24 @@ def test_bad_roles_are_refused(bad, tmp_path, capsys):
     roles.write_text(json.dumps({"name": "x", "primary": "#1D4E89", "secondary": "#E07A1F", **bad}))
     assert build_theme.main([str(roles), "--out-dir", str(tmp_path / "out")]) == 2
     assert "error" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("colours", [
+    ["#F28C28", "#1B1B3A", "#6C757D", "#FFD166"],  # orange: mid-tone, needs stronger body text
+    ["#FFC20E", "#222222", "#00A3E0"],             # yellow and cyan: the slots around them move
+])
+def test_mid_tone_brand_colours_stay_exact_in_the_light_theme(colours, tmp_path):
+    roles = {"name": "Exact", "primary": colours[0], "secondary": colours[1], "others": colours[2:]}
+    rep = build_theme.build(roles, tmp_path)
+    assert rep["ok"], rep["variants"]
+    v = rep["variants"]["light"]
+    have = {c.upper() for c in v["colors"].values()}
+    for c in colours:
+        if not build_theme.is_neutral(c):
+            assert c.lstrip("#").upper() in have, (c, v["colors"])
+
+
+def test_body_text_given_in_roles_is_never_changed(tmp_path):
+    roles = {"name": "Keep", "primary": "#F28C28", "neutrals": {"body": "#404040"}}
+    rep = build_theme.build(roles, tmp_path)
+    assert rep["variants"]["light"]["colors"]["dk2"] == "404040"
