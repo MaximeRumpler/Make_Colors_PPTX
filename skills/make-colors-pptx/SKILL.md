@@ -51,6 +51,7 @@ Write `brand/roles.json` (keys in `references/roles-reference.md`), then:
 python3 scripts/build_theme.py brand/roles.json --out-dir brand
 ```
 It writes `brand/<name>.potx` and `brand/<name>-dark.potx` (add `--thmx` for a theme-only file). Read the `notes` of the JSON report: they say where each brand colour went (`brand_slots`), or why it had to become a nearby shade. Pass that on in plain words.
+The report's `options` are optional Make_Clean deck.json keys that suit this palette, each with its reason (`emphasis`: a mid-tone main colour on the key numbers; `accent_scale: "tints"`: three or more brand colours would make scales look like categories). Mention one only when it matters; add it to deck.json, or to roles.json (`"emphasis": true`, `"accent_scale": "tints"`) so `deck_json` carries it, only if the user wants it.
 
 ### 5. Check
 ```bash
@@ -62,7 +63,7 @@ It checks the text and fill pairs the Make_Clean layouts use (4.5:1 for text, 3:
 ```bash
 python3 scripts/preview_deck.py --theme brand/<name>.potx --logo brand/logo.png [--deck build/deck.json]
 ```
-It builds the user's Make_Clean deck (or a six-slide sample) without and with the theme, runs Make_Clean's lint with the contrast check (overflow with the brand font, unreadable text), renders both and writes `build/colors-preview/before-after.png`. Open it and look for overflow, text that got hard to read, and a logo that disappears on dark slides (ask for a light version of the logo). It needs the Make_Clean_PPTX skill; without LibreOffice, it still lints and says the images were skipped.
+It builds the user's Make_Clean deck (or a six-slide sample) without and with the theme, runs Make_Clean's lint with the contrast check (overflow with the brand font, unreadable text), renders both and writes `build/colors-preview/before-after.png`. Open it and look for overflow, text that got hard to read, and a logo that disappears on dark slides: for a one-colour logo, `python3 scripts/logo_light.py brand/logo.png` writes `brand/logo-light.png` (transparent PNG or SVG; a several-colour logo is refused, ask for the brand's own light version) and `logo_dark` in deck.json uses it on dark backgrounds (`--logo-dark` in the preview). It needs the Make_Clean_PPTX skill; without LibreOffice, it still lints and says the images were skipped.
 
 For a deck that already exists (a Make_Clean deck built earlier, the same deck restyled by Make_Style_PPTX, or the user's own `.pptx`), use `--pptx deck.pptx` instead of `--deck`: nothing is rebuilt.
 

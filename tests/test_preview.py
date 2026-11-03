@@ -51,3 +51,21 @@ def test_before_after_sheet(tmp_path, harbour_roles, make_clean):
     assert res["render"] == "done", res
     with Image.open(res["before_after"]) as im:
         assert im.height > im.width / 2
+
+
+def test_brand_keys_reach_the_branded_deck_only(tmp_path, harbour_roles, make_clean):
+    """logo_dark, emphasis and accent_scale are Make_Clean >= 1.3 keys: only the "after" deck gets them."""
+    import json
+    from PIL import Image as I
+    rep = build_theme.build(harbour_roles, tmp_path / "brand")
+    light = tmp_path / "logo-light.png"
+    I.new("RGB", (80, 20), (240, 240, 240)).save(light)
+    res = preview_deck.preview(rep["variants"]["light"]["files"][0], _logo(tmp_path / "logo.png"),
+                               out_dir=tmp_path / "prev", make_clean=make_clean, render=False,
+                               extra={"logo_dark": str(light), "emphasis": "accent2", "accent_scale": "tints"})
+    assert "error" not in res, res
+    assert not any("unknown key" in w for w in res["theme_warnings"]), res["theme_warnings"]
+    after = json.loads((tmp_path / "prev" / "after.json").read_text())
+    before = json.loads((tmp_path / "prev" / "before.json").read_text())
+    assert after["emphasis"] == "accent2" and after["accent_scale"] == "tints" and after["logo_dark"].endswith(".png")
+    assert not ({"emphasis", "accent_scale", "logo_dark"} & set(before))

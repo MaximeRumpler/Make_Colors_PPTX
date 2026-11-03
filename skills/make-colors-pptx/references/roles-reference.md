@@ -24,6 +24,8 @@
 | `neutrals` | Light variant: `text` (dk1), `background` (lt1), `body` (dk2), `surface` (lt2) | `111111`, `FFFFFF`, `404040`, `F2F2F2` |
 | `dark` | Dark variant: same four keys | `F5F5F5`, `121212`, `D9D9D9`, `262626` |
 | `tint_neutrals` | `true`: neutrals take a touch of the primary hue, same lightness | `false` |
+| `emphasis` | `true` or an accent (`"accent3"`): copy Make_Clean's deck.json `emphasis` (key numbers in that accent) into the report's `deck_json`; `true` takes the suggested accent | not set |
+| `accent_scale` | `"tints"`: copy `"accent_scale": "tints"` into `deck_json` (scales drawn as tints of accent1) | not set |
 | `accents`, `dark_accents` | Six colours used as they are, when the brand guide already defines a ramp. Checked, not corrected | generated |
 | `variants` | `["light"]`, `["dark"]` or both | both |
 

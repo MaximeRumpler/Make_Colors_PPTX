@@ -225,3 +225,22 @@ def test_body_text_given_in_roles_is_never_changed(tmp_path):
     roles = {"name": "Keep", "primary": "#F28C28", "neutrals": {"body": "#404040"}}
     rep = build_theme.build(roles, tmp_path)
     assert rep["variants"]["light"]["colors"]["dk2"] == "404040"
+
+
+def test_deck_json_options_are_suggested_never_added_alone(tmp_path):
+    roles = {"name": "Opt", "primary": "#1D4E89", "secondary": "#E07A1F", "others": ["#2A9D8F"]}
+    rep = build_theme.build(roles, tmp_path)
+    keys = {o["key"]: o for o in rep["options"]}
+    assert keys["accent_scale"]["value"] == "tints" and "why" in keys["accent_scale"]
+    assert keys["emphasis"]["value"].startswith("accent")
+    assert set(rep["deck_json"]) == {"theme"}  # suggestions only
+    rep = build_theme.build({**roles, "emphasis": True, "accent_scale": "tints"}, tmp_path)
+    assert rep["deck_json"]["accent_scale"] == "tints"
+    assert rep["deck_json"]["emphasis"] == keys["emphasis"]["value"]
+    rep = build_theme.build({**roles, "emphasis": "accent3"}, tmp_path)
+    assert rep["deck_json"]["emphasis"] == "accent3"
+
+
+def test_single_colour_brand_suggests_no_scale(tmp_path):
+    rep = build_theme.build({"name": "One", "primary": "#1D4E89"}, tmp_path)
+    assert all(o["key"] != "accent_scale" for o in rep["options"])
