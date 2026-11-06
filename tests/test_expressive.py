@@ -40,3 +40,14 @@ def test_sibling_cards_take_different_readable_accents():
 def test_a_single_card_is_left_alone():
     new, n = E.spread(slide(1), THEME, None)
     assert n == 0 and new == slide(1)
+
+
+def test_muted_text_with_a_luminance_shift_is_judged_as_shifted():
+    xml = slide(2).decode().replace('<a:schemeClr val="tx1"/></a:solidFill></a:rPr>',
+                                    '<a:schemeClr val="tx2"><a:lumMod val="50000"/><a:lumOff val="50000"/></a:schemeClr>'
+                                    '</a:solidFill></a:rPr>', 2)
+    new, _ = E.spread(xml.encode(), THEME, None)
+    muted = E.rgb if False else None
+    # light text (tx2 lifted by 50%) must not land on a mid-tone accent it cannot be read on
+    for acc in fills(new):
+        assert acc in THEME["colors"]

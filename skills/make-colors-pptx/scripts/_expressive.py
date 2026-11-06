@@ -12,6 +12,8 @@ Cards are found by their role tag in the shape name (Make_Clean: ``card#1``, ``c
 """
 from __future__ import annotations
 
+import colorsys
+
 from lxml import etree
 
 from _colour import DEFAULT_CLRMAP, NS, ratio, hex_to_rgb
@@ -42,7 +44,11 @@ def _text_colours(sp):
             rpr = r.find("a:rPr", NS)
             clr = rpr.find("a:solidFill/a:schemeClr", NS) if rpr is not None else None
             size = int(rpr.get("sz")) / 100 if rpr is not None and rpr.get("sz") else None
-            out.append((clr.get("val") if clr is not None else "tx1", size))
+            mods = {}
+            if clr is not None:
+                for m in clr:
+                    mods[etree.QName(m).localname] = int(m.get("val", "0"))
+            out.append((clr.get("val") if clr is not None else "tx1", size, mods))
     return out
 
 
@@ -52,9 +58,16 @@ def spread(slide_xml: bytes, theme: dict, clrmap: dict | None) -> tuple[bytes, i
     cmap = {**DEFAULT_CLRMAP, **(clrmap or {})}
     colours = theme["colors"]
 
-    def rgb(scheme):
+    def rgb(scheme, mods=None):
         slot = cmap.get(scheme, scheme)
-        return hex_to_rgb(colours[slot]) if slot in colours else None
+        if slot not in colours:
+            return None
+        c = hex_to_rgb(colours[slot])
+        if mods and (mods.get("lumMod") or mods.get("lumOff")):  # the muted text colour is a shade of the body colour
+            h, lum, s = colorsys.rgb_to_hls(*c)
+            lum = lum * mods.get("lumMod", 100000) / 100000 + mods.get("lumOff", 0) / 100000
+            c = colorsys.hls_to_rgb(h, max(0.0, min(1.0, lum)), s)
+        return c
 
     tree = root.find(".//p:spTree", NS)
     shapes = [sp for sp in tree.findall("p:sp", NS)]  # top level only: group offsets are relative
@@ -87,8 +100,8 @@ def spread(slide_xml: bytes, theme: dict, clrmap: dict | None) -> tuple[bytes, i
             bg = rgb(acc)
             if bg is None:
                 return False
-            for scheme, size in runs:
-                fg = rgb(scheme)
+            for scheme, size, mods in runs:
+                fg = rgb(scheme, mods)
                 if fg is None or ratio(fg, bg) < (3.0 if size and size >= 24 else 4.5):
                     return False
             return True
