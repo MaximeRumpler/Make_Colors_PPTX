@@ -58,6 +58,8 @@ Make a PowerPoint theme from our brand guidelines.
 Mets ce deck aux couleurs de notre marque, voici notre logo.
 ```
 
+Want a bolder result? `--expressive` gives sibling cards, callouts and panels different brand colours instead of one grey surface, each chosen so its text stays readable. It is off by default.
+
 A deck that is already made, restyled or not, gets the theme without being rebuilt: the skill writes a branded copy and leaves your file as it is. The theme also works on its own in PowerPoint: *Design → Themes → Browse for Themes*.
 
 * * *
