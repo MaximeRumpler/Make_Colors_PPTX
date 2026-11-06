@@ -285,6 +285,44 @@ def token(theme: dict, name: str, contract: dict):
     return rgb
 
 
+ROLE_KEYS = {"dk1": "neutrals.text", "lt1": "neutrals.background", "dk2": "neutrals.body", "lt2": "neutrals.surface"}
+
+
+def _slot_of(theme: dict, name: str, contract: dict):
+    cmap = {**DEFAULT_CLRMAP, **(theme.get("clrmap") or {})}
+    tok = contract["tokens"].get(name)
+    scheme = tok["scheme"] if tok else name
+    return cmap.get(scheme, scheme)
+
+
+def fix_hint(theme: dict, pair: dict, contract: dict) -> str:
+    """Which roles.json key to change for a failing pair, and a value that passes ('' when the roles are not editable)."""
+    best = None
+    for side in ("text", "on"):
+        slot = _slot_of(theme, pair[side], contract)
+        key = ROLE_KEYS.get(slot)
+        if not key or slot not in theme["colors"]:
+            continue
+        other = token(theme, pair["on" if side == "text" else "text"], contract)
+        base = hex_to_rgb(theme["colors"][slot])
+        h, lum, sat = colorsys.rgb_to_hls(*base)
+        for step in range(1, 101):
+            for sign in (-1, 1):
+                cand = colorsys.hls_to_rgb(h, max(0.0, min(1.0, lum + sign * step / 100)), sat)
+                trial = {**theme, "colors": {**theme["colors"], slot: rgb_to_hex(cand)}}
+                fg, bg = token(trial, pair["text"], contract), token(trial, pair["on"], contract)
+                if ratio(fg, bg) >= pair["min_ratio"]:
+                    if best is None or step < best[0]:
+                        best = (step, key, rgb_to_hex(cand))
+                    break
+            else:
+                continue
+            break
+    if not best:
+        return ""
+    return "change %s (for example to #%s)" % (best[1], best[2].lstrip("#"))
+
+
 def check_theme(theme: dict, contract: dict | None = None) -> dict:
     """Check a theme against the contract. Same rules as Make_Clean_PPTX's `lint_deck.py --contrast`.
 
@@ -329,7 +367,9 @@ def check_theme(theme: dict, contract: dict | None = None) -> dict:
             what = {"graphic": "%s lines and markers on %s", "link": "%s links on %s"}.get(
                 p.get("kind"), "%s text on %s") % (p["text"], p["on"])
             where = " (%d text runs in the Make_Clean libraries)" % p["runs"] if p.get("runs") else ""
-            findings.append("%s: %.2f:1, %.1f:1 needed%s" % (what, r, p["min_ratio"], where))
+            hint = fix_hint(theme, p, contract)
+            findings.append("%s: %.2f:1, %.1f:1 needed%s%s" % (what, r, p["min_ratio"], where,
+                                                              ". To fix: " + hint if hint else ""))
     return {"ok": not findings, "dark": dark, "ramp": ramp, "pairs": pairs, "findings": findings}
 
 
