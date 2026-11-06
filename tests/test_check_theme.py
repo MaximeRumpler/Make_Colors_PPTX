@@ -29,3 +29,15 @@ def test_unreadable_file(tmp_path):
     bad = tmp_path / "x.pptx"
     bad.write_text("not a zip")
     assert check_theme.main([str(bad)]) == 2
+
+
+def test_failing_pair_names_the_roles_key_and_a_passing_value(tmp_path, harbour_roles):
+    import _colour as C
+    rep = build_theme.build(harbour_roles, tmp_path)
+    theme = C.load_theme(rep["variants"]["light"]["files"][0])
+    theme["colors"]["lt2"] = "8A8A8A"  # a dark surface under the muted text
+    res = C.check_theme(theme)
+    hints = [f for f in res["findings"] if "To fix: change neutrals." in f]
+    assert hints
+    new = hints[0].split("for example to #")[1].rstrip(")")
+    assert len(new) == 6
