@@ -44,6 +44,8 @@ It lists the colours and fonts it finds, and agrees with you on your three or fo
 
 It needs Python 3.9 or later on your computer; the skill tells you if anything is missing. It works offline. The before and after image needs [Make_Clean_PPTX](https://github.com/MaximeRumpler/Make_Clean_PPTX#install) and LibreOffice.
 
+In a terminal or script, the Claude Code steps are `claude plugin marketplace add MaximeRumpler/Make_PPTX` then `claude plugin install make-colors-pptx@make-pptx`. The marketplace `Make_PPTX` lists the whole set, which is why its address appears here. Where `pip install` is refused (recent Ubuntu, Debian, Fedora, Homebrew), run `python3 scripts/_env.py --setup` in the skill folder: it sets up a private Python folder.
+
 **Update**: Claude Code, `/plugin marketplace update make-pptx`; other assistants, run the `npx skills add` line again.
 
 ## Use
