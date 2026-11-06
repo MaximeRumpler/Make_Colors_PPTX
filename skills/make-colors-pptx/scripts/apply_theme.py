@@ -11,6 +11,9 @@ and notes are copied byte for byte. The input file is never overwritten.
 
 --fonts-fallback replaces a brand font that is not a standard Windows/macOS/Office font.
 
+--expressive also gives sibling cards (card#, callout#, panel#, keyfigure# of Make_Clean) different
+accents of the theme, each one readable under its text (see _expressive.py).
+
 Prints JSON: output file, fonts, dark or light, the contract check of the result (same rules as
 check_theme.py), and how many fixed colours the slides use (the theme cannot change those: a deck
 made with Make_Clean has none). Exit 0 when the result passes, 1 with findings, 2 on an error.
@@ -93,7 +96,7 @@ def _new_theme(old: bytes, src, fonts: dict, name: str) -> bytes:
     return _xml(root)
 
 
-def apply(deck, theme, out=None, fallback=None, contract=None) -> dict:
+def apply(deck, theme, out=None, fallback=None, contract=None, expressive=False) -> dict:
     deck, theme = Path(deck), Path(theme)
     if not deck.is_file():
         raise ThemeError("deck not found: %s" % deck)
@@ -132,6 +135,13 @@ def apply(deck, theme, out=None, fallback=None, contract=None) -> dict:
                 changed[m] = _xml(root)
         slides = [n for n in names if re.match(r"^ppt/slides/slide\d+\.xml$", n)]
         fixed = {n: len(re.findall(rb"<a:srgbClr\b", z.read(n))) for n in slides}
+        recoloured = 0
+        if expressive:
+            import _expressive
+            for n in slides:
+                data, k = _expressive.spread(z.read(n), info, src["clrmap"])
+                if k:
+                    changed[n], recoloured = data, recoloured + k
         out.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as w:
             for item in z.infolist():
@@ -147,13 +157,16 @@ def apply(deck, theme, out=None, fallback=None, contract=None) -> dict:
     check = check_theme(result, contract)
     findings = check["findings"] + (view_findings(views_check(result, contract)) if check["ramp"] else [])
     n_fixed = sum(fixed.values())
+    if expressive:
+        notes.append("expressive palette: %d card fills now use other accents of the theme (text stays readable)" % recoloured
+                     if recoloured else "expressive palette: no card could take another accent without hurting readability")
     if n_fixed:
         notes.append("%d fixed colours on %d of %d slides do not follow the theme: they keep their colour" % (
             n_fixed, sum(1 for v in fixed.values() if v), len(slides)))
     return {"deck": str(deck), "output": str(out), "theme": name, "fonts": fonts,
             "font_notes": [n for n in {font_note(f) for f in fonts.values()} if n],
             "dark": check["dark"], "colour_map": "from the theme" if src["clrmap"] else "kept",
-            "masters": len(masters), "fixed_colours": n_fixed, "notes": notes,
+            "masters": len(masters), "fixed_colours": n_fixed, "expressive_fills": recoloured, "notes": notes,
             "ok": not findings, "findings": findings}
 
 
@@ -163,10 +176,12 @@ def main(argv=None) -> int:
     ap.add_argument("--theme", required=True, help="the theme built by build_theme.py (.potx, .thmx)")
     ap.add_argument("--out", help="output file (default: <deck>-<theme>.pptx next to the deck)")
     ap.add_argument("--fonts-fallback", help='font used instead of a brand font that is not common, e.g. "Arial"')
+    ap.add_argument("--expressive", action="store_true",
+                    help="spread the brand colours over sibling cards (fills only, text stays readable)")
     ap.add_argument("--contract", help="a newer theme-contract.json from Make_Clean_PPTX")
     a = ap.parse_args(argv)
     try:
-        res = apply(a.deck, a.theme, a.out, a.fonts_fallback, load_contract(a.contract))
+        res = apply(a.deck, a.theme, a.out, a.fonts_fallback, load_contract(a.contract), a.expressive)
     except (ThemeError, OSError, ValueError, KeyError, etree.XMLSyntaxError) as exc:
         print(json.dumps({"error": str(exc)}, ensure_ascii=False))
         return 2
