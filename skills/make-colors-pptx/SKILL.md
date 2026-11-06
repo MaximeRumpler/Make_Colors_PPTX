@@ -73,7 +73,7 @@ Keep the working files (roles file, check and preview images, the dark variant u
 Hand over the theme files with their full paths (in harnesses with an outputs folder, save them there), the preview image, and two or three sentences: the colours and fonts used, anything that changed from the brand guide and why, and how to use the theme:
 - in Make_Clean_PPTX: `"theme": "brand/<name>.potx"` and `"logo": "brand/logo.png"` in deck.json;
 - on a deck that is already built (also after Make_Style_PPTX, in any order): `python3 scripts/apply_theme.py deck.pptx --theme brand/<name>.potx` writes `deck-<name>.pptx` and never touches the original; slides, shapes and their names stay as they are;
-- for a bolder result on a deck that is already built: add `--expressive` to `apply_theme.py`. Sibling cards, callouts and panels then take different brand accents instead of all sitting on the grey surface, each one chosen so its text stays readable. Offer it when the request asks for a creative, colourful or bold look; the default stays the plain theme.
+- for a bolder result on a deck that is already built: add `--expressive` to `apply_theme.py`. Sibling cards, callouts and panels then take different brand accents instead of all sitting on the grey surface, each one chosen so its text stays readable. Offer it when the request asks for a creative, colourful or bold look; the default stays the plain theme. Do not combine it with the `emphasis` key of Make_Clean_PPTX on the same deck: an accent-coloured figure cannot be read on another accent, so the cards that hold figures stay grey.
 - in PowerPoint: *Design → Themes → Browse for Themes*, choose the `.potx`.
 
 ## Reviewing a branded deck
