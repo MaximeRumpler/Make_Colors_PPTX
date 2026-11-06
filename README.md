@@ -60,9 +60,9 @@ Mets ce deck aux couleurs de notre marque, voici notre logo.
 
 Want a bolder result? `--expressive` gives sibling cards, callouts and panels different brand colours instead of one grey surface, each chosen so its text stays readable. It is off by default.
 
-[![The same six slides before and after a sample brand theme: a navy and orange brand on the neutral deck](docs/before-after.png)](docs/before-after.png)
+[![The same four slides twice: neutral black and grey, then in a made-up teal, orange and yellow brand](docs/before-after.png)](docs/before-after.png)
 
-*A made-up brand, "Demo Harbour": the neutral deck above, the same deck with its theme below.*
+*A made-up brand, "Sunrise": the neutral deck on top, the same deck below with its theme and the expressive option.*
 
 A deck that is already made, restyled or not, gets the theme without being rebuilt: the skill writes a branded copy and leaves your file as it is. The theme also works on its own in PowerPoint: *Design → Themes → Browse for Themes*.
 
