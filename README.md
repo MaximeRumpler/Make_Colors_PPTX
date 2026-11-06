@@ -40,7 +40,7 @@ It lists the colours and fonts it finds, and agrees with you on your three or fo
 
 | **Claude Code** | **Codex, Cursor, Copilot, Gemini CLI and others** | **Claude.ai or Claude desktop** |
 |:---|:---|:---|
-| `/plugin marketplace add MaximeRumpler/Make_PPTX`<br>then `/plugin install make-colors-pptx@make-pptx` | `npx skills add MaximeRumpler/Make_Colors_PPTX`<br>It asks which assistant you use. Needs [Node.js](https://nodejs.org). | A ready-to-upload zip comes with the first release. Until then, use one of the first two columns. |
+| `/plugin marketplace add MaximeRumpler/Make_PPTX`<br>then `/plugin install make-colors-pptx@make-pptx` | `npx skills add MaximeRumpler/Make_Colors_PPTX`<br>It asks which assistant you use. Needs [Node.js](https://nodejs.org). | 1. Download [**make-colors-pptx.zip**](https://github.com/MaximeRumpler/Make_Colors_PPTX/releases/latest/download/make-colors-pptx.zip)<br>2. *Settings → Capabilities*: turn on *Code execution and file creation*<br>3. *Skills → Upload skill*, choose the zip |
 
 It needs Python 3.9 or later on your computer; the skill tells you if anything is missing. It works offline. The before and after image needs [Make_Clean_PPTX](https://github.com/MaximeRumpler/Make_Clean_PPTX#install) and LibreOffice.
 
