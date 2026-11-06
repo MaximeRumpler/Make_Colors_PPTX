@@ -60,6 +60,10 @@ Mets ce deck aux couleurs de notre marque, voici notre logo.
 
 Want a bolder result? `--expressive` gives sibling cards, callouts and panels different brand colours instead of one grey surface, each chosen so its text stays readable. It is off by default.
 
+[![The same six slides before and after a sample brand theme: a navy and orange brand on the neutral deck](docs/before-after.png)](docs/before-after.png)
+
+*A made-up brand, "Demo Harbour": the neutral deck above, the same deck with its theme below.*
+
 A deck that is already made, restyled or not, gets the theme without being rebuilt: the skill writes a branded copy and leaves your file as it is. The theme also works on its own in PowerPoint: *Design → Themes → Browse for Themes*.
 
 * * *
@@ -88,7 +92,7 @@ Part of [**Make PPTX**](https://github.com/MaximeRumpler/Make_PPTX), three skill
 | **Make_Clean_PPTX** | **Make_Style_PPTX** | **Make_Colors_PPTX** |
 |:---|:---|:---|
 | **Form.** Notes in, a clean deck out: one message per slide, tested layouts and charts. | **Look.** The same deck in another style: other shapes, arrangements and backgrounds. | **Brand.** Your colours, fonts and logo, from your brand guidelines, website or example files. |
-| [Install](https://github.com/MaximeRumpler/Make_Clean_PPTX#install) · [Gallery](https://maximerumpler.github.io/Make_Clean_PPTX/) | Preview · [Install](https://github.com/MaximeRumpler/Make_Style_PPTX#install) | Preview · [Install](https://github.com/MaximeRumpler/Make_Colors_PPTX#install) |
+| [Install](https://github.com/MaximeRumpler/Make_Clean_PPTX#install) · [Gallery](https://maximerumpler.github.io/Make_Clean_PPTX/) | [Gallery](https://github.com/MaximeRumpler/Make_Style_PPTX/blob/main/docs/gallery/gallery.md) · [Install](https://github.com/MaximeRumpler/Make_Style_PPTX#install) | [Example](https://github.com/MaximeRumpler/Make_Colors_PPTX/blob/main/docs/before-after.png) · [Install](https://github.com/MaximeRumpler/Make_Colors_PPTX#install) |
 
 *Start with Make_Clean_PPTX for the structure. Add a style and your brand colours when you need them.*
 
