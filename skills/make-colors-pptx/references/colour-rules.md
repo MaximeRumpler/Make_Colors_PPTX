@@ -43,6 +43,8 @@ Thresholds are WCAG 2.x (SC 1.4.3 and 1.4.11):
 
 *Why:* below these ratios, text becomes hard to read for people with low vision, on a projector in a lit room, or on a phone in daylight, which is most audiences at some point. The Make_Clean libraries use 10 pt text on nearly every pair, so 4.5:1 applies almost everywhere.
 
+In the dark variant, the layouts that draw a dark cover or a dark panel (they fill with `accent1`) come out light, because `accent1` is the lightest accent of a dark theme and the text on it is the dark background colour. Say so when you hand over the dark theme; the build report carries the same note.
+
 Tight spots to check first: captions (`muted`, which is the text colour lightened) on cards, light accents as text on `accent1` (dark slides), and `accent5` on `accent2`. Captions are why `dk1` must be very dark: with the default `#F2F2F2` cards, any text colour lighter than `#111111` puts captions on cards under 4.5:1 (on white alone, the limit is about `#212121`). A lighter brand text colour needs lighter cards.
 
 Brand colours that are mid-tone (most oranges, yellows, light greens, cyans) cannot carry white text and cannot be read as text on white. They become a light step of the ramp or are darkened; `build_theme.py` says which and why.
