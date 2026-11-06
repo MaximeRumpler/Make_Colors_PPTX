@@ -123,6 +123,11 @@ def solve_light(paper, ink, ink2, step=1.1, pins=None):
     return _relax(LIGHT_TARGETS, pins or {}, bounds)
 
 
+DARK_NOTES = ["dark variant: Make_Clean's dark covers and dark panels use accent1, which on a dark theme is the lightest "
+              "accent, so they come out light on dark pages. That is the contract (accent1 always carries the background "
+              "colour as text); for a dark cover on a dark deck, keep a cover without a fill or use the light variant"]
+
+
 def solve_dark(paper, ink, ink2, step=1.1, pins=None):
     """Accent luminances for a dark theme (accent1 lightest): paper is dark, ink and ink2 are light."""
     m = MARGIN
@@ -539,7 +544,7 @@ def build(roles: dict, out_dir: Path, thmx: bool = False, contract: dict | None 
         check = check_theme(theme, contract)
         report["variants"][v] = {"files": files, "colors": theme["colors"], "clrmap": theme["clrmap"],
                                  "primary_slot": theme["primary_slot"], "brand_slots": theme["brand_slots"],
-                                 "notes": theme["notes"], "contract_ok": check["ok"], "findings": check["findings"],
+                                 "notes": theme["notes"] + (DARK_NOTES if dark else []), "contract_ok": check["ok"], "findings": check["findings"],
                                  "view_warnings": view_findings(views_check(theme, contract))}
     first = next(iter(report["variants"].values()))
     fallback = {"theme_fonts_fallback": "Arial"} if report["font_notes"] else {}
