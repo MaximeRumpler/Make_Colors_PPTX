@@ -46,28 +46,30 @@ Reply "ok", or tell me what to change.
 Brand guidelines usually have three or four colours: all of them go on the six accents, which stay ordered from dark to light, so each colour takes the step nearest its own lightness and the steps in between are shades of the nearest one (`references/colour-rules.md`, section 2). Say in one plain sentence that a colour may become a lighter or darker shade to stay readable. More than four colours: ask which four lead; the rest stay for pictures and the logo. Greys, black and white are neutrals (text, cards), not accents. If the user wants one hue only, set `"ramp": "single"`.
 
 ### 4. Build the theme
-Write `brand/roles.json` (keys in `references/roles-reference.md`), then:
+Write `$WORK/roles.json` (`WORK` is the temporary folder of step 7; keys in `references/roles-reference.md`), then:
 ```bash
-python3 scripts/build_theme.py brand/roles.json --out-dir brand
+python3 scripts/build_theme.py "$WORK/roles.json" --out-dir brand
 ```
 It writes `brand/<name>.potx` and `brand/<name>-dark.potx` (add `--thmx` for a theme-only file). Read the `notes` of the JSON report: they say where each brand colour went (`brand_slots`), or why it had to become a nearby shade. Pass that on in plain words.
 The report's `options` are optional Make_Clean deck.json keys that suit this palette, each with its reason (`emphasis`: a mid-tone main colour on the key numbers; `accent_scale: "tints"`: three or more brand colours would make scales look like categories). Mention one only when it matters; add it to deck.json, or to roles.json (`"emphasis": true`, `"accent_scale": "tints"`) so `deck_json` carries it, only if the user wants it.
 
 ### 5. Check
 ```bash
-python3 scripts/check_theme.py brand/<name>.potx --preview brand/<name>-check.png
+python3 scripts/check_theme.py brand/<name>.potx --preview "$WORK/check.png"
 ```
 It checks the text and fill pairs the Make_Clean layouts use (4.5:1 for text, 3:1 for large text and graphics), the accent ramp, and the ramp in greyscale and three colour-blindness simulations. Open the PNG. Exit code 1 lists findings: fix the roles (darker text colour, another primary shade) and rebuild. Never ship a variant with findings without telling the user.
 
 ### 6. Show before and after
 ```bash
-python3 scripts/preview_deck.py --theme brand/<name>.potx --logo brand/logo.png [--deck build/deck.json]
+python3 scripts/preview_deck.py --theme brand/<name>.potx --logo brand/logo.png [--deck deck.json] --out-dir "$WORK/preview"
 ```
-It builds the user's Make_Clean deck (or a six-slide sample) without and with the theme, runs Make_Clean's lint with the contrast check (overflow with the brand font, unreadable text), renders both and writes `build/colors-preview/before-after.png`. Open it and look for overflow, text that got hard to read, and a logo that disappears on dark slides: for a one-colour logo, `python3 scripts/logo_light.py brand/logo.png` writes `brand/logo-light.png` (transparent PNG or SVG; a several-colour logo is refused, ask for the brand's own light version) and `logo_dark` in deck.json uses it on dark backgrounds (`--logo-dark` in the preview). It needs the Make_Clean_PPTX skill; without LibreOffice, it still lints and says the images were skipped.
+It builds the user's Make_Clean deck (or a six-slide sample) without and with the theme, runs Make_Clean's lint with the contrast check (overflow with the brand font, unreadable text), renders both and writes `before-after.png` in `--out-dir`. Open it and look for overflow, text that got hard to read, and a logo that disappears on dark slides: for a one-colour logo, `python3 scripts/logo_light.py brand/logo.png` writes `brand/logo-light.png` (transparent PNG or SVG; a several-colour logo is refused, ask for the brand's own light version) and `logo_dark` in deck.json uses it on dark backgrounds (`--logo-dark` in the preview). It needs the Make_Clean_PPTX skill; without LibreOffice, it still lints and says the images were skipped.
 
 For a deck that already exists (a Make_Clean deck built earlier, the same deck restyled by Make_Style_PPTX, or the user's own `.pptx`), use `--pptx deck.pptx` instead of `--deck`: nothing is rebuilt.
 
-### 7. Deliver
+### 7. Deliver and clean up
+Keep the working files (roles file, check and preview images, the dark variant unless the user wants it) in a temporary folder (`WORK=$(mktemp -d)`; Windows: a folder under `$env:TEMP`) and give the user only the theme files they need, plus the preview image. Delete the temporary folder at the end: the user's folder holds the deliverables and nothing else.
+
 Hand over the theme files with their full paths (in harnesses with an outputs folder, save them there), the preview image, and two or three sentences: the colours and fonts used, anything that changed from the brand guide and why, and how to use the theme:
 - in Make_Clean_PPTX: `"theme": "brand/<name>.potx"` and `"logo": "brand/logo.png"` in deck.json;
 - on a deck that is already built (also after Make_Style_PPTX, in any order): `python3 scripts/apply_theme.py deck.pptx --theme brand/<name>.potx` writes `deck-<name>.pptx` and never touches the original; slides, shapes and their names stay as they are;
@@ -89,7 +91,7 @@ When the user asks whether an existing deck or template is readable or on brand:
 
 | Symptom | Fix |
 |---|---|
-| A script says a Python package is missing | `python3 -m pip install -r requirements.txt` |
+| A script says a Python package is missing | `python3 scripts/_env.py --setup`: builds a private Python folder (also works where `pip install` is refused, e.g. recent Ubuntu); the scripts use it by themselves. |
 | `primary … cannot sit on the ramp unchanged` | Normal for light or vivid colours (yellow, orange, cyan): the nearest readable shade is used. Show the user both. |
 | `muted text on paper/surface` fails | The text colour is too light: use `#111111` or darker, or a lighter surface. |
 | `not a ramp` with `accents` given | The six given colours are not ordered by lightness: drop `accents` and let the script build the ramp. |

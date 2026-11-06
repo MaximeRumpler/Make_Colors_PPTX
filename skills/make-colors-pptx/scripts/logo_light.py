@@ -12,6 +12,12 @@ Prints a JSON report; exit code 0 written, 1 not a one-colour logo, 2 file probl
 """
 from __future__ import annotations
 
+import sys as _sys
+from pathlib import Path as _Path
+
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+import _env  # noqa: E402,F401  (switches to the private environment if needed)
+
 import argparse
 import json
 import re

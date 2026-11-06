@@ -31,7 +31,7 @@ def test_referenced_files_exist():
         assert (SKILL / rel).exists(), f"SKILL.md mentions {rel} but it does not exist"
 
 
-STDLIB = {"__future__", "argparse", "collections", "colorsys", "copy", "io", "itertools", "json", "math", "os",
+STDLIB = {"__future__", "argparse", "collections", "colorsys", "copy", "importlib", "io", "itertools", "json", "math", "os",
           "pathlib", "re", "shutil", "subprocess", "sys", "zipfile"}
 THIRD_PARTY = {"pptx", "PIL", "lxml"}  # python-pptx, Pillow, lxml: nothing else to install
 
